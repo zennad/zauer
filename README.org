@@ -282,8 +282,10 @@ The format of arguments to =set-defaults= is identical to the one used by
 | line-spacing                                  | 0.1               |
 | load-prefer-newer                             | t                 |
 | mac-allow-anti-aliasing                       | t                 |
+| mac-function-modifier                         | 'hyper            |
 | mac-command-key-is-meta                       | t                 |
 | mac-command-modifier                          | 'meta             |
+| mac-right-command-modifier                    | 'alt              |
 | mac-option-key-is-meta                        | nil               |
 | mac-option-modifier                           | 'super            |
 | mac-right-option-modifier                     | nil               |
@@ -535,7 +537,7 @@ Misc. defaults that don’t fit above. TODO: move these above.
        ("" "listings" nil nil)))
    '(package-archives
      '(("melpa" . "https://melpa.org/packages/")
-       ("org" . "http://orgmode.org/elpa/")
+       ("org" . "https://orgmode.org/elpa/")
        ("gnu" . "https://elpa.gnu.org/packages/")))
    '(projectile-globally-ignored-files '(".DS_Store" "TAGS"))
    '(projectile-mode-line-prefix "")
