@@ -231,6 +231,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | compilation-skip-threshold                    | 2                 |
 | completions-cycle-threshold                   | t                 |
 | completions-format                            | 'vertical         |
+| confirm-kill-processes                        | nil               |
 | cursor-in-non-selected-windows                | nil               |
 | custom-safe-themes                            | t                 |
 | custom-search-field                           | nil               |
@@ -736,6 +737,7 @@ Define some helper functions.
 Override browse-url to handle man protocol better.
 
 #+BEGIN_SRC emacs-lisp
+(require 'browse-url)
 (defun my-browse-url (url &rest args)
   "Ask a WWW browser to load URL.
 Prompt for a URL, defaulting to the URL at or before point.
@@ -1163,13 +1165,6 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
     :hook (anaconda-mode . (lambda ()
                              (setq-local company-backends '((company-anaconda
                                                              company-capf))))))
-#+END_SRC
-***** company-tern
-#+BEGIN_SRC emacs-lisp
-  (use-package company-tern
-    :commands company-tern
-    :hook (tern-mode . (lambda ()
-      (setq-local company-backends '(company-tern company-capf)))))
 #+END_SRC
 ***** company-auctex
 #+BEGIN_SRC emacs-lisp
@@ -1864,6 +1859,7 @@ investigate how to fix this.
     :demand
     :config (global-auto-revert-mode t))
 
+  (require 'vc-git)
   (advice-add 'vc-git-find-file-hook :override
     (lambda ()
       "Activate `smerge-mode' if there is a conflict."
@@ -1898,6 +1894,7 @@ Base mode used for shell and terminal modes.
     "Possible prefix that may come before history elements. In
     Zshell with extended_history, this is useful.")
 
+  (defvar ffap-url-at-point)
   (use-package comint
     :ensure nil
     :hook (comint-mode . (lambda () (setq-local ffap-url-at-point "/ssh:")))
@@ -2276,9 +2273,9 @@ Make scripts executable automatically.
            (org-mode . hl-line-mode)
            (dired-mode . hl-line-mode)))
 #+END_SRC
-**** makefile-mode
+**** make-mode
 #+BEGIN_SRC emacs-lisp
-  (use-package makefile-mode
+  (use-package make-mode
     :ensure nil
     :mode (("\\(/\\|\\`\\)[Mm]akefile" . makefile-mode)))
 #+END_SRC
@@ -2877,7 +2874,6 @@ macho-mode to toggle then M-x hexl-mode.
 #+BEGIN_SRC emacs-lisp
 (use-package nix-update
   :commands nix-update-fetch
-  :ensure nil
   :bind (("C-. u" . nix-update-fetch)))
 #+END_SRC
 **** OCaml
@@ -2888,6 +2884,7 @@ macho-mode to toggle then M-x hexl-mode.
     :config
 ;; Use Merlin if available
 (when (require 'merlin nil t)
+  (defvar merlin-command)
   (setq merlin-command 'opam)
 
   (when (functionp 'merlin-document)
@@ -3310,7 +3307,7 @@ https://github.com/cbowdon/daemons.el
     :preface
     (defun func-region (start end func)
       "Run a function over the region between START and END in current buffer."
-      (unless (region-active-p) (throw "No active region."))
+      (unless (region-active-p) (error "No active region."))
       (save-excursion
         (let ((text (delete-and-extract-region start end)))
           (insert (funcall func text)))))
@@ -3428,8 +3425,7 @@ if [ "$TERM" != "dumb" ]; then
     fi
     alias grep='grep --color=auto' \
           egrep='grep -E --color=auto' \
-          diff='diff --color=auto' \
-          less='less -R'
+          diff='diff --color=auto'
 else
     alias l="ls -lF" \
           grep='grep' \
@@ -3499,6 +3495,7 @@ setopt always_to_end \
        auto_name_dirs \
        auto_pushd \
        cdable_vars \
+       complete_in_word \
        extended_history \
        hist_expire_dups_first \
        hist_find_no_dups \
@@ -3547,29 +3544,30 @@ fi
 Bind to emacs...
 
 #+BEGIN_SRC shell
+autoload -U up-line-or-beginning-search
+autoload -U down-line-or-beginning-search
+bindkey ' ' magic-space
+bindkey ';5D' emacs-backward-word
+bindkey ';5C' emacs-forward-word
 bindkey -e
 #+END_SRC
 
 Zstyle completions.
 
 #+BEGIN_SRC shell
-zstyle ':completion:*::::' completer \
-       _expand _complete _ignored _approximate
-zstyle ':completion:*' menu select=1 \
-       _complete _ignored _approximate
-zstyle ':completion:*' matcher-list \
-       'm:{a-zA-Z-_}={A-Za-z_-}' \
-       'r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' ignored-patterns '*~' '_*' '*\\\#*\\\#'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-zstyle ':completion:*' select-prompt \
-       '%SScrolling active: current selection at %p%s'
-zstyle ':completion:*' \
-       ignored-patterns '*~' '_*' '*\\\#*\\\#'
-zstyle ':completion:*:scp:*' group-order files \
-       all-files users hosts-domain \
-       hosts-host hosts-ipaddr
-zstyle ':completion:*:ssh:*' group-order hosts-domain \
-       hosts-host users hosts-ipaddr
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z-_}={A-Za-z_-}' 'r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' special-dirs yes
+zstyle ':completion:*' squeeze-slashes yes
+zstyle ':completion:*:*:*:*:*' menu select
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01'
+zstyle ':completion:*:history-words' list no
+zstyle ':completion:*:history-words' remove-all-dups yes
+zstyle ':completion:*:history-words' stop yes
+zstyle ':completion:*:rm:*' file-patterns '*:all-files'
+zstyle ':completion::complete:*' cache-path "$HOME/.zcompcache"
+zstyle ':completion::complete:*' use-cache 1
 zstyle ':vcs_info:*' enable git
 zstyle '*' single-ignored show
 #+END_SRC
@@ -4215,7 +4213,7 @@ args.
 
 #+BEGIN_SRC nix :padline no
   # -*- mode: nix; coding: utf-8; -*-
-  { version ? "19.09"
+  { version ? "20.03"
   , channel ? {
       "x86_64-darwin" = "nixpkgs-${version}-darwin";
     }.${builtins.currentSystem} or "nixos-${version}"
@@ -4916,11 +4914,16 @@ matrix:
       env: CHANNEL=nixos-19.09
     - os: linux
       dist: trusty
+      env: CHANNEL=nixos-20.03
+    - os: linux
+      dist: trusty
       env: CHANNEL=nixos-unstable
     - os: osx
       env: CHANNEL=nixpkgs-19.03-darwin
     - os: osx
       env: CHANNEL=nixpkgs-19.09-darwin
+    - os: osx
+      env: CHANNEL=nixpkgs-20.03-darwin
     - os: osx
       env: CHANNEL=nixpkgs-unstable
 #+END_SRC
