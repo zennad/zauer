@@ -1018,6 +1018,22 @@ resort, go to one of the package group headings & type =C-c ^ a=.
 
 These are the best & most useful modes available to us in Emacs world.
 
+**** aggressive-indent
+[[https://github.com/Malabarba/aggressive-indent-mode][GitHub]]
+
+Automatically indent code as you type. Only enabled for Lisp currently.
+
+#+BEGIN_SRC emacs-lisp
+  (use-package aggressive-indent
+    :hook ((emacs-lisp-mode
+            inferior-emacs-lisp-mode
+            ielm-mode
+            lisp-mode
+            inferior-lisp-mode
+            isp-interaction-mode
+            slime-repl-mode) . aggressive-indent-mode))
+#+END_SRC
+
 **** align
 
 #+BEGIN_SRC emacs-lisp
@@ -1042,42 +1058,6 @@ These are the best & most useful modes available to us in Emacs world.
 		   (modes quote (haskell-mode literate-haskell-mode))))
     )
 #+END_SRC
-
-**** aggressive-indent
-[[https://github.com/Malabarba/aggressive-indent-mode][GitHub]]
-
-Automatically indent code as you type. Only enabled for Lisp currently.
-
-#+BEGIN_SRC emacs-lisp
-  (use-package aggressive-indent
-    :hook ((emacs-lisp-mode
-            inferior-emacs-lisp-mode
-            ielm-mode
-            lisp-mode
-            inferior-lisp-mode
-            isp-interaction-mode
-            slime-repl-mode) . aggressive-indent-mode))
-#+END_SRC
-
-**** Darkokai Theme
-
-
-[[https://github.com/sjrmanning/darkokai][GitHub]]
-
-I have choosen to use the Darkokai theme at the moment. I quite like to change
-my theme from time to time so I might look at having an easier interface to do
-this. Perhaps a theme randomizer upon booting Emacs would be nice.
-
-#+BEGIN_SRC emacs-lisp
-  (use-package darkokai
-    :if window-system
-    :init
-    (add-to-list 'custom-theme-load-path
-                 (file-name-directory
-                   (locate-library "darkokai")))
-    (load-theme ’darkokai t))
-#+END_SRC
-
 
 **** Company
 
@@ -1269,6 +1249,25 @@ info.
                ivy-completion-in-region
                swiper))
 #+END_SRC
+**** Darkokai Theme
+
+[[https://github.com/sjrmanning/darkokai][GitHub]]
+
+I have choosen to use the Darkokai theme at the moment. I quite like to change
+my theme from time to time so I might look at having an easier interface to do
+this. Perhaps a theme randomizer upon booting Emacs would be nice.
+
+#+BEGIN_SRC emacs-lisp
+  (use-package darkokai-theme
+    :ensure darkokai-theme
+    :if window-system
+    :init
+    (add-to-list 'custom-theme-load-path
+      (file-name-directory
+      (locate-library "darkokai-theme")))
+    (load-theme ’darkokai t))
+#+END_SRC
+
 **** diff-hl
 
 This mode provides indicators at the right fringe of the Emacs buffer. These
