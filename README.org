@@ -1059,36 +1059,25 @@ Automatically indent code as you type. Only enabled for Lisp currently.
             slime-repl-mode) . aggressive-indent-mode))
 #+END_SRC
 
-**** Apropospriate Theme
+**** Darkokai Theme
 
-[[https://github.com/waymondo/apropospriate-theme][GitHub]]
 
-This is the theme I use & it works well for this configuration. It is dark
-with high contrast. We will only enable it when we are running with GUI Emacs.
+[[https://github.com/sjrmanning/darkokai][GitHub]]
+
+I have choosen to use the Darkokai theme at the moment. I quite like to change
+my theme from time to time so I might look at having an easier interface to do
+this. Perhaps a theme randomizer upon booting Emacs would be nice.
 
 #+BEGIN_SRC emacs-lisp
-  (use-package apropospriate-theme
+  (use-package darkokai
     :if window-system
     :init
     (add-to-list 'custom-theme-load-path
                  (file-name-directory
-                   (locate-library "apropospriate-theme")))
-    (load-theme 'apropospriate-dark t))
+                   (locate-library "darkokai")))
+    (load-theme ’darkokai t))
 #+END_SRC
 
-While apropospriate is the default, other themes can be used as well! For
-instance spacemacs-theme can be enabled:
-
-#+BEGIN_SRC emacs-lisp :tangle no
-  (use-package spacemacs-common
-    :ensure spacemacs-theme
-    :if window-system
-    :init
-    (add-to-list 'custom-theme-load-path
-                 (file-name-directory
-                   (locate-library "spacemacs-theme-pkg")))
-    (load-theme 'spacemacs-dark t))
-#+END_SRC
 
 **** Company
 
