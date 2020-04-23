@@ -2516,7 +2516,6 @@ packages (for completion, syntax checking, etc.)
            ("\\CMakeLists.txt$" . cmake-mode)))
 #+END_SRC
 
-
 **** CoffeeScript
 
 #+BEGIN_SRC emacs-lisp
@@ -2711,7 +2710,6 @@ packages (for completion, syntax checking, etc.)
     )
 #+END_SRC
 
-
 **** Java
 ***** jdee
 
@@ -2888,7 +2886,6 @@ macho-mode to toggle then M-x hexl-mode.
                     (merlin-mode)))))))
 #+END_SRC
 
-
 **** PHP
 
 #+BEGIN_SRC emacs-lisp
@@ -2924,7 +2921,6 @@ macho-mode to toggle then M-x hexl-mode.
     :mode ("\\.py\\'" . python-mode)
     :interpreter ("python" . python-mode))
 #+END_SRC
-
 
 **** Ren’Py
 #+BEGIN_SRC emacs-lisp
