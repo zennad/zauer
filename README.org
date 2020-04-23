@@ -2984,6 +2984,13 @@ macho-mode to toggle then M-x hexl-mode.
          ("\\.zsh\\'" . sh-mode)))
 #+END_SRC
 
+**** Swift
+#+BEGIN_SRC emacs-lisp
+  (use-package swift-mode
+    :mode "\\.swift\\'"
+    )
+#+END_SRC
+
 **** texinfo
 
 #+BEGIN_SRC emacs-lisp
