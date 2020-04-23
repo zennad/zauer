@@ -2926,6 +2926,13 @@ macho-mode to toggle then M-x hexl-mode.
 #+END_SRC
 
 
+**** Ren’Py
+#+BEGIN_SRC emacs-lisp
+  (use-package renpy
+    :mode ("\\.rpy\\'" . renpy-mode)
+    )
+#+END_SRC
+
 **** restclient
 
 #+BEGIN_SRC emacs-lisp
