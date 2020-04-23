@@ -1250,26 +1250,6 @@ info.
                swiper))
 #+END_SRC
 
-**** Darkokai Theme
-
-[[https://github.com/sjrmanning/darkokai][GitHub]]
-
-I have choosen to use the Darkokai theme at the moment. I quite like to change
-my theme from time to time so I might look at having an easier interface to do
-this. Perhaps a theme randomizer upon booting Emacs would be nice.
-
-#+BEGIN_SRC emacs-lisp
-  (use-package darkokai-theme
-    :ensure darkokai-theme
-    :if window-system
-    ;; :init
-    ;; (add-to-list 'custom-theme-load-path
-    ;;   (file-name-directory
-    ;;   (locate-library "darkokai-theme")))
-    ;; (load-theme ’darkokai t)
-    )
-#+END_SRC
-
 **** diff-hl
 
 This mode provides indicators at the right fringe of the Emacs buffer. These
@@ -1795,6 +1775,44 @@ achieve this).
 #+BEGIN_SRC emacs-lisp
   (use-package sudo-edit
     :bind (("C-c C-r" . sudo-edit)))
+#+END_SRC
+
+**** Theme
+
+I have choosen to use the Darkokai theme at the moment. I quite like to change
+my theme from time to time so I might look at having an easier interface to do
+this. Perhaps a theme randomizer upon booting Emacs would be nice.
+
+***** Darkokai Theme
+
+[[https://github.com/sjrmanning/darkokai][GitHub]]
+
+#+BEGIN_SRC emacs-lisp
+  (use-package darkokai-theme
+    :ensure darkokai-theme
+    :if window-system
+    ;; :init
+    ;; (add-to-list 'custom-theme-load-path
+    ;;   (file-name-directory
+    ;;   (locate-library "darkokai-theme")))
+    ;; (load-theme ’darkokai t)
+    )
+#+END_SRC
+
+***** Monokai-Alt Theme
+#+BEGIN_SRC emacs-lisp
+  (use-package monokai-alt-theme
+    ;; :ensure monokai-alt-theme
+    :if window-system
+    )
+#+END_SRC
+
+***** Monokai-Pro Theme
+#+BEGIN_SRC emacs-lisp
+  (use-package monokai-pro-theme
+    ;; :ensure monokai-pro-theme
+    :if window-system
+    )
 #+END_SRC
 
 **** try
