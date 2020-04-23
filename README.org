@@ -1249,6 +1249,7 @@ info.
                ivy-completion-in-region
                swiper))
 #+END_SRC
+
 **** Darkokai Theme
 
 [[https://github.com/sjrmanning/darkokai][GitHub]]
@@ -1261,11 +1262,12 @@ this. Perhaps a theme randomizer upon booting Emacs would be nice.
   (use-package darkokai-theme
     :ensure darkokai-theme
     :if window-system
-    :init
-    (add-to-list 'custom-theme-load-path
-      (file-name-directory
-      (locate-library "darkokai-theme")))
-    (load-theme ’darkokai t))
+    ;; :init
+    ;; (add-to-list 'custom-theme-load-path
+    ;;   (file-name-directory
+    ;;   (locate-library "darkokai-theme")))
+    ;; (load-theme ’darkokai t)
+    )
 #+END_SRC
 
 **** diff-hl
@@ -4786,7 +4788,7 @@ have been configured to use the paths above.
 
 #+BEGIN_SRC nix
 in buildEnv {
-  name = "bauer-1.5.0";
+  name = "bauer-1.5.0-zennad";
   buildInputs = [ pkgs.makeWrapper pkgs.bash ];
   postBuild = ''
     mkdir -p $out/etc
