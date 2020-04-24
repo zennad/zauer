@@ -340,6 +340,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | ruby-insert-encoding-magic-comment            | nil               |
 | save-abbrevs                                  | 'silently         |
 | save-interprogram-paste-before-kill           | t                 |
+| scroll-bar-mode                               | nil               |
 | scroll-conservatively                         | 101               |
 | scroll-preserve-screen-position               | 'always           |
 | sentence-end-double-space                     | nil               |
@@ -356,6 +357,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | term-input-ignoredups                         | t                 |
 | text-quoting-style                            | 'quote            |
 | tls-checktrust                                | t                 |
+| tool-bar-mode                                 | nil               |
 | uniquify-buffer-name-style                    | 'forward          |
 | use-package-always-defer                      | t                 |
 | vc-allow-async-revert                         | t                 |
