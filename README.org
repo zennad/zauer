@@ -4222,7 +4222,7 @@ high level goals that should be verified:
 - Don’t assume users’ language, locales, time zone, etc.
 - Don’t hard code any personal information
 - Everything should run on Linux, and macOS.
-- Nix usage is optional (see Withou Nix above).
+- Nix usage is optional (see Without Nix above).
 
 The editor and environment should be general purpose and portable
 
