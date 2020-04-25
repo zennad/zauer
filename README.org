@@ -1140,7 +1140,13 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
                                                   company-auctex-symbols
                                                   company-capf))))))
 #+END_SRC
+***** company-coq
 #+BEGIN_SRC emacs-lisp
+  (use-package company-coq
+    :commands company-coq
+    :hook (coq-mode . (lambda ()
+    (setq-local company-backends '((company-coq company-capf)))))
+    )
 #+END_SRC
 
 ***** company-irony
