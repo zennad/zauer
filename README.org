@@ -1157,6 +1157,15 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
       (setq-local company-backends '(company-irony company-capf)))))
 #+END_SRC
 
+***** company-lean
+#+BEGIN_SRC emacs-lisp
+  (use-package company-lean
+    :commands company-lean
+    :hook (lean-mode . (lambda ()
+    (setq-local company-backends '((company-lean company-capf)))))
+    )
+#+END_SRC
+
 ***** company-math
 #+BEGIN_SRC emacs-lisp
   (use-package company-math
@@ -2815,6 +2824,12 @@ Auctex provides some helpful tools for working with LaTeX.
   (use-package tex-mode
     :hook (TeX-mode . latex-electric-env-pair-mode))
 #+END_SRC
+**** Lean
+#+BEGIN_SRC emacs-lisp
+  (use-package lean-mode
+    :mode "\\.lean\\'" . lean-mode)
+#+END_SRC
+
 **** Lisp
 
 #+BEGIN_SRC emacs-lisp
