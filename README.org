@@ -1114,21 +1114,6 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
     (global-company-mode))
 #+END_SRC
 
-***** company-irony
-#+BEGIN_SRC emacs-lisp
-  (use-package company-irony
-    :commands company-irony
-    :hook (irony-mode . (lambda ()
-      (setq-local company-backends '(company-irony company-capf)))))
-#+END_SRC
-
-***** company-restclient
-#+BEGIN_SRC emacs-lisp
-  (use-package company-restclient
-    :commands company-restclient
-    :hook (restclient-mode . (lambda ()
-      (setq-local company-backends '(company-restclient company-capf)))))
-#+END_SRC
 ***** company-anaconda
 #+BEGIN_SRC emacs-lisp
   (use-package company-anaconda
@@ -1155,6 +1140,36 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
                                                   company-auctex-symbols
                                                   company-capf))))))
 #+END_SRC
+#+BEGIN_SRC emacs-lisp
+#+END_SRC
+
+***** company-irony
+#+BEGIN_SRC emacs-lisp
+  (use-package company-irony
+    :commands company-irony
+    :hook (irony-mode . (lambda ()
+      (setq-local company-backends '(company-irony company-capf)))))
+#+END_SRC
+
+***** company-math
+#+BEGIN_SRC emacs-lisp
+  (use-package company-math
+    :preface
+    (autoload 'company-math-symbols-latex "company-math")
+    (autoload 'company-latex-commands "company-math")
+    :hook
+    (TeX-mode . (lambda ()
+                  (setq-local company-backends '((company-math-symbols-latex
+                                                  company-latex-commands
+                                                  company-capf))))))
+#+END_SRC
+***** company-restclient
+#+BEGIN_SRC emacs-lisp
+  (use-package company-restclient
+    :commands company-restclient
+    :hook (restclient-mode . (lambda ()
+      (setq-local company-backends '(company-restclient company-capf)))))
+#+END_SRC
 ***** company-web
 #+BEGIN_SRC emacs-lisp
   (use-package company-web
@@ -1167,18 +1182,6 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
                                                         company-web-jade
                                                         company-web-slim
                                                         company-capf))))))
-#+END_SRC
-***** company-math
-#+BEGIN_SRC emacs-lisp
-  (use-package company-math
-    :preface
-    (autoload 'company-math-symbols-latex "company-math")
-    (autoload 'company-latex-commands "company-math")
-    :hook
-    (TeX-mode . (lambda ()
-                  (setq-local company-backends '((company-math-symbols-latex
-                                                  company-latex-commands
-                                                  company-capf))))))
 #+END_SRC
 **** Counsel
 
