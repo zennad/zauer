@@ -2827,7 +2827,7 @@ Auctex provides some helpful tools for working with LaTeX.
 **** Lean
 #+BEGIN_SRC emacs-lisp
   (use-package lean-mode
-    :mode "\\.lean\\'" . lean-mode)
+    :mode "\\.lean\\'")
 #+END_SRC
 
 **** Lisp
