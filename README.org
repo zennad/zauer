@@ -2759,6 +2759,11 @@ packages (for completion, syntax checking, etc.)
   (use-package hasky-stack)
 #+END_SRC
 
+***** liquid-types
+#+BEGIN_SRC emacs-lisp
+  (use-package liquid-types)
+#+END_SRC
+
 **** Java
 ***** jdee
 
