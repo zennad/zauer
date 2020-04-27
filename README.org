@@ -3387,6 +3387,11 @@ https://github.com/cbowdon/daemons.el
     :hook
     ((shell-mode eshell-mode) . with-editor-export-editor))
 #+END_SRC
+**** zlc
+#+BEGIN_SRC emacs-lisp
+  (use-package zlc)
+#+END_SRC
+
 *** Games
 
     These are some just some games that I like which I have added
