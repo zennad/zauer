@@ -3215,6 +3215,11 @@ https://github.com/cbowdon/daemons.el
 (use-package iedit
   :commands iedit-mode)
 #+END_SRC
+**** linum-relative
+#+BEGIN_SRC emacs-lisp
+  (use-package linum-relative)
+#+END_SRC
+
 **** mwim
 
 [[https://github.com/alezost/mwim.el][GitHub]]
