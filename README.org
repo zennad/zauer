@@ -3199,6 +3199,11 @@ https://github.com/cbowdon/daemons.el
 (use-package git-timemachine
   :commands git-timemachine)
 #+END_SRC
+**** gitlab
+#+BEGIN_SRC emacs-lisp
+  (use-package gitlab)
+#+END_SRC
+
 **** htmlize
 
 #+BEGIN_SRC emacs-lisp
