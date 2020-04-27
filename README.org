@@ -1300,6 +1300,11 @@ This mode will try to
     :hook (prog-mode . dtrt-indent-mode))
 #+END_SRC
 
+**** Elpa-keyring-update
+#+BEGIN_SRC emacs-lisp
+  (use-package gnu-elpa-keyring-update)
+#+END_SRC
+
 **** Emacs shell
 
 Emacs shell provides . Run eshell by typing =C-c e= or =M-x eshell=.
