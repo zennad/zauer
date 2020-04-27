@@ -17,7 +17,7 @@
 #+keywords: dotfiles config ide emacs nix bauer
 #+html_head: <link rel="stylesheet" href="https://matthewbauer.us/style.css" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 #+link_home: https://matthewbauer.us
-#+link_up: http://matthewbauer.us/bauer/
+#+link_up: https://matthewbauer.us/bauer/
 #+version: 1.5.0
 
 This ORG-mode file generates an Emacs configuration. I am calling it an
@@ -732,7 +732,7 @@ Define some helper functions.
   (defun web-search (start end)
     (interactive "r")
     (let ((q (buffer-substring-no-properties start end)))
-      (browse-url (concat "http://www.google.com/search?btnI&q="
+      (browse-url (concat "https://www.google.com/search?btnI&q="
         (url-hexify-string q)))))
 #+END_SRC
 
@@ -4812,7 +4812,7 @@ why this is necessary, but nXML complains otherwise.
 #+BEGIN_SRC nix
   schemas = writeText "schemas.xml" ''
   <locatingRules
-      xmlns="http://thaiopensource.com/ns/locating-rules/1.0"
+      xmlns="https://thaiopensource.com/ns/locating-rules/1.0"
   >
     <documentElement localName="section" typeId="DocBook"/>
     <documentElement localName="chapter" typeId="DocBook"/>
@@ -5410,7 +5410,7 @@ done
    details.
 
    You should have received a copy of the GNU General Public License along with
-   this program. If not, see <http://www.gnu.org/licenses/>.
+   this program. If not, see <https://www.gnu.org/licenses/>.
 * COMMENT Footer
 # Local Variables:
 # mode: org
