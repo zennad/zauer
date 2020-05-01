@@ -231,7 +231,6 @@ The format of arguments to =set-defaults= is identical to the one used by
 | compilation-skip-threshold                    | 2                 |
 | completions-cycle-threshold                   | t                 |
 | completions-format                            | 'vertical         |
-| confirm-kill-processes                        | nil               |
 | cursor-in-non-selected-windows                | nil               |
 | custom-safe-themes                            | t                 |
 | custom-search-field                           | nil               |
@@ -357,7 +356,10 @@ The format of arguments to =set-defaults= is identical to the one used by
 | term-input-ignoredups                         | t                 |
 | text-quoting-style                            | 'quote            |
 | tls-checktrust                                | t                 |
-| tool-bar-mode                                 | nil               |
+| tool-bar-mode | nil |
+| undo-limit                                    | 800000            |
+| undo-strong-limit                             | 12000000          |
+| undo-outer-limit                              | 120000000         |
 | uniquify-buffer-name-style                    | 'forward          |
 | use-package-always-defer                      | t                 |
 | vc-allow-async-revert                         | t                 |
@@ -494,6 +496,15 @@ Misc. defaults that don’t fit above. TODO: move these above.
    '(magit-blame-disable-modes '(fci-mode view-mode yascroll-bar-mode))
    '(magit-process-find-password-functions
      '(magit-process-password-auth-source))
+   '(magit-process-password-prompt-regexps '(
+      "^\\(Enter \\)?[Pp]assphrase\\( for \\(RSA \\)?key '.*'\\)?: ?$"
+      "^\\(Enter \\)?[Pp]assword\\( for '?\\(https?://\\)?\\(?99:[^']*\\)'?\\)?: ?$"
+      "Please enter the passphrase for the ssh key"
+      "Please enter the passphrase to unlock the OpenPGP secret key"
+      "^.*'s password: ?$"
+      "^Yubikey for .*: ?$"
+      "^Enter PIN for .*: ?$"
+      "^\\[sudo\\] password for .*: ?$"))
    '(mouse-wheel-scroll-amount '(1
                                  ((shift) . 5)
                                  ((control))))
@@ -619,7 +630,7 @@ set in the Emacs process.
 
 #+BEGIN_SRC emacs-lisp
   (set-envs
-   '("EDITOR" "emacsclient")
+   '("EDITOR" "emacsclient -a emacs")
    '("NODE_NO_READLINE" "1")
    '("PAGER" "cat")
    '("PS1" "\\W > ")
@@ -3473,7 +3484,14 @@ just in case.
   export SAVEHIST="$HISTSIZE"
 
   export CVS_RSH=ssh
-  export EDITOR=emacs
+
+  if [ -z "$TERM" ] || [ "$TERM" = dumb ] || [ "$TERM" = dumb-emacs-ansi ] || [ "$TERM" = eterm-color ]; then
+    export EDITOR='emacsclient -a emacs -c'
+  elif [ -n "$PS1" ]; then
+    export EDITOR='emacsclient -a "emacs -nw" -t'
+  else
+    export EDITOR='emacsclient -a emacs'
+  fi
 #+END_SRC
 
 Dircolors
