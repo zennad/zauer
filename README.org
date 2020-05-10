@@ -360,6 +360,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | undo-limit                                    | 800000            |
 | undo-strong-limit                             | 12000000          |
 | undo-outer-limit                              | 120000000         |
+| undo-tree-auto-save-history                   | t                 |
 | uniquify-buffer-name-style                    | 'forward          |
 | use-package-always-defer                      | t                 |
 | vc-allow-async-revert                         | t                 |
@@ -591,7 +592,6 @@ Misc. defaults that don’t fit above. TODO: move these above.
    '(undo-tree-mode-lighter "")
    '(undo-tree-history-directory-alist
       `((".*" . ,(expand-file-name "undo-tree/" user-emacs-directory))))
-   '(undo-tree-auto-save-history t)
    '(vc-git-diff-switches '("-w" "-U3"))
    '(vc-ignore-dir-regexp
      (concat "\\(\\(\\`"
@@ -2266,14 +2266,18 @@ Make scripts executable automatically.
     :preface
     (defun find-file--line-number (orig-fun filename
                                    &optional wildcards)
+      "Turn files like file.js:14:10 into file.js and going to line 14, col 10."
       (save-match-data
         (let* ((matched (string-match
-                          "^\\(.*\\):\\([0-9]+\\):?$"
+                          "^\\(.*?\\):\\([0-9]+\\):?\\([0-9]*\\)$"
                           filename))
                (line-number (and matched
                               (match-string 2 filename)
                               (string-to-number
                                 (match-string 2 filename))))
+               (col-number (and matched
+                              (match-string 3 filename)
+                              (string-to-number (match-string 3 filename))))
                (filename (if matched
                              (match-string 1 filename)
                              filename)))
@@ -2281,7 +2285,9 @@ Make scripts executable automatically.
           (when line-number
             ;; goto-line is for interactive use
             (goto-char (point-min))
-            (forward-line (1- line-number))))))
+            (forward-line (1- line-number))
+            (when (> col-number 0)
+              (forward-char (1- col-number)))))))
     :config
     (advice-add 'find-file
                 :around #'find-file--line-number))
@@ -3524,6 +3530,19 @@ alias ..="cd .." \
       upgrade_bauer='git -C $HOME/.local/share/bauer pull && nix-env -if $HOME/.local/share/bauer' \
       upgrade=upgrade_bauer
 
+help() {
+  if command -v xdg-open > /dev/null; then
+    xdg-open https://matthewbauer.us/bauer/
+  elif command -v open > /dev/null; then
+    open https://matthewbauer.us/bauer/
+  elif [ -n "$EDITOR" ]; then
+    $EDITOR $HOME/.local/share/bauer/README.org
+  else
+    echo Can’t find help.
+    exit 1
+  fi
+}
+
 set -o noclobber
 
 if [ "$TERM" != "dumb" ]; then
@@ -3655,6 +3674,11 @@ fi
 Bind to emacs...
 
 #+BEGIN_SRC shell
+autoload -U tetris
+
+autoload -U bracketed-paste-magic
+zle -N bracketed-paste bracketed-paste-magic
+
 autoload -U up-line-or-beginning-search
 autoload -U down-line-or-beginning-search
 bindkey ' ' magic-space
@@ -3907,7 +3931,6 @@ Set paths provided by Nix,
    '(dired-touch-program "@coreutils@/bin/touch")
    '(dired-chmod-program "@coreutils@/bin/chmod")
    '(dired-chown-program "@coreutils@/bin/chown")
-   '(dired-free-space-program "@coreutils@/bin/df")
    '(diff-command "@diffutils@/bin/diff")
    '(find-program "@findutils@/bin/find")
    '(epg-gpg-program "@gpg@/bin/gpg")
