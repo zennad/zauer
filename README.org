@@ -355,7 +355,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | term-input-ignoredups                         | t                 |
 | text-quoting-style                            | 'quote            |
 | tls-checktrust                                | t                 |
-| tool-bar-mode | nil |
+| tool-bar-mode                                 | nil               |
 | undo-limit                                    | 800000            |
 | undo-strong-limit                             | 12000000          |
 | undo-outer-limit                              | 120000000         |
@@ -3258,19 +3258,16 @@ https://github.com/cbowdon/daemons.el
 (use-package iedit
   :commands iedit-mode)
 #+END_SRC
-<<<<<<< HEAD
 **** linum-relative
 #+BEGIN_SRC emacs-lisp
   (use-package linum-relative)
 #+END_SRC
 
-=======
 **** ledger-mode
 
 #+BEGIN_SRC emacs-lisp
   (use-package ledger-mode)
 #+END_SRC
->>>>>>> origin/master
 **** mwim
 
 [[https://github.com/alezost/mwim.el][GitHub]]
