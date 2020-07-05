@@ -303,7 +303,6 @@ The format of arguments to =set-defaults= is identical to the one used by
 | mac-right-option-modifier                     | nil               |
 | magit-clone-set-remote.pushDefault            | t                 |
 | magit-log-auto-more                           | t                 |
-| magit-no-confirm                              | t                 |
 | magit-remote-add-set-remote.pushDefault       | t                 |
 | magit-save-repository-buffers                 | 'dontask          |
 | mmm-submode-decoration-level                  | 2                 |
@@ -365,7 +364,6 @@ The format of arguments to =set-defaults= is identical to the one used by
 | use-package-always-defer                      | t                 |
 | vc-allow-async-revert                         | t                 |
 | vc-command-messages                           | t                 |
-| vc-follow-symlinks                            | nil               |
 | vc-make-backup-files                          | t                 |
 | version-control                               | t                 |
 | view-read-only                                | t                 |
@@ -387,14 +385,14 @@ Misc. defaults that don’t fit above. TODO: move these above.
 
 #+BEGIN_SRC emacs-lisp
   (when (file-exists-p user-emacs-directory)
-    (mkdir (expand-file-name "auto-save/" user-emacs-directory) t)
-    (mkdir (expand-file-name "backup/" user-emacs-directory) t)
-    (mkdir (expand-file-name "undo-tree/" user-emacs-directory) t))
+    (make-directory (expand-file-name "auto-save/" user-emacs-directory) t)
+    (make-directory (expand-file-name "backup/" user-emacs-directory) t)
+    (make-directory (expand-file-name "undo-tree/" user-emacs-directory) t))
 
   (set-defaults
    '(auto-save-file-name-transforms `((".*"
                                        ,(expand-file-name "auto-save/"
-                                                           user-emacs-directory) t)))
+                                                          user-emacs-directory) t)))
    '(bug-reference-bug-regexp
      (concat "\\(\\(?:[Ii]ssue \\|[Ff]ixe[ds] \\|[Rr]esolve[ds]? \\|[Cc]lose[ds]?\\|"
              "[Pp]\\(?:ull [Rr]equest\\|[Rr]\\) \\|(\\)#\\([0-9]+\\))?\\)"))
@@ -498,14 +496,14 @@ Misc. defaults that don’t fit above. TODO: move these above.
    '(magit-process-find-password-functions
      '(magit-process-password-auth-source))
    '(magit-process-password-prompt-regexps '(
-      "^\\(Enter \\)?[Pp]assphrase\\( for \\(RSA \\)?key '.*'\\)?: ?$"
-      "^\\(Enter \\)?[Pp]assword\\( for '?\\(https?://\\)?\\(?99:[^']*\\)'?\\)?: ?$"
-      "Please enter the passphrase for the ssh key"
-      "Please enter the passphrase to unlock the OpenPGP secret key"
-      "^.*'s password: ?$"
-      "^Yubikey for .*: ?$"
-      "^Enter PIN for .*: ?$"
-      "^\\[sudo\\] password for .*: ?$"))
+                                             "^\\(Enter \\)?[Pp]assphrase\\( for \\(RSA \\)?key '.*'\\)?: ?$"
+                                             "^\\(Enter \\)?[Pp]assword\\( for '?\\(https?://\\)?\\(?99:[^']*\\)'?\\)?: ?$"
+                                             "Please enter the passphrase for the ssh key"
+                                             "Please enter the passphrase to unlock the OpenPGP secret key"
+                                             "^.*'s password: ?$"
+                                             "^Yubikey for .*: ?$"
+                                             "^Enter PIN for .*: ?$"
+                                             "^\\[sudo\\] password for .*: ?$"))
    '(mouse-wheel-scroll-amount '(1
                                  ((shift) . 5)
                                  ((control))))
@@ -568,6 +566,11 @@ Misc. defaults that don’t fit above. TODO: move these above.
        ("org" . "https://orgmode.org/elpa/")
        ("gnu" . "https://elpa.gnu.org/packages/")))
    '(projectile-globally-ignored-files '(".DS_Store" "TAGS"))
+   '(projectile-ignored-project-function
+     (lambda (file) (or (file-remote-p file)
+                        (string-prefix-p "/nix" file)
+                        (string-prefix-p "/nix/store" file)
+                        (string-suffix-p "/.local/share/Trash/files/" file))))
    '(projectile-mode-line-prefix "")
    '(projectile-mode-line-function
      (lambda () (if (and (ignore-errors (projectile-project-p))
@@ -591,7 +594,7 @@ Misc. defaults that don’t fit above. TODO: move these above.
    '(uniquify-separator "/")
    '(undo-tree-mode-lighter "")
    '(undo-tree-history-directory-alist
-      `((".*" . ,(expand-file-name "undo-tree/" user-emacs-directory))))
+     `((".*" . ,(expand-file-name "undo-tree/" user-emacs-directory))))
    '(vc-git-diff-switches '("-w" "-U3"))
    '(vc-ignore-dir-regexp
      (concat "\\(\\(\\`"
@@ -1922,7 +1925,7 @@ investigate how to fix this.
 
 **** bug-reference
 
-Provides links to bugs listed in sourvce code.
+Provides links to bugs listed in source code.
 
 #+BEGIN_SRC emacs-lisp
   (use-package bug-reference
@@ -2156,6 +2159,14 @@ Base mode used for shell and terminal modes.
            (")" . dired-omit-mode)))
 #+END_SRC
 
+**** display-line-numbers
+
+#+BEGIN_SRC emacs-lisp
+  (use-package display-line-numbers
+    :commands (display-line-numbers-mode)
+    :hook ((prog-mode . display-line-numbers-mode)
+           (conf-mode . display-line-numbers-mode)))
+#+END_SRC
 **** eldoc
 
 Provides some info for the thing at the point.
@@ -2299,7 +2310,7 @@ Make scripts executable automatically.
   (use-package flyspell
     :if (locate-file
          (if (boundp 'ispell-program-name)
-             ispell-program-name "ispell")
+             ispell-program-name "aspell")
          exec-path)
     :hook ((text-mode . flyspell-mode)
            (prog-mode . flyspell-prog-mode))
@@ -3247,11 +3258,19 @@ https://github.com/cbowdon/daemons.el
 (use-package iedit
   :commands iedit-mode)
 #+END_SRC
+<<<<<<< HEAD
 **** linum-relative
 #+BEGIN_SRC emacs-lisp
   (use-package linum-relative)
 #+END_SRC
 
+=======
+**** ledger-mode
+
+#+BEGIN_SRC emacs-lisp
+  (use-package ledger-mode)
+#+END_SRC
+>>>>>>> origin/master
 **** mwim
 
 [[https://github.com/alezost/mwim.el][GitHub]]
@@ -3424,6 +3443,7 @@ https://github.com/cbowdon/daemons.el
     :hook
     ((shell-mode eshell-mode) . with-editor-export-editor))
 #+END_SRC
+<<<<<<< HEAD
 **** zlc
 #+BEGIN_SRC emacs-lisp
   (use-package zlc)
@@ -3443,6 +3463,13 @@ https://github.com/cbowdon/daemons.el
   (use-package sudoku)
 #+END_SRC
 
+=======
+
+** END
+#+BEGIN_SRC emacs-lisp
+  (provide 'default)
+#+END_SRC
+>>>>>>> origin/master
 * Profiles
 :PROPERTIES:
 :CUSTOM_ID: profiles
@@ -3479,15 +3506,16 @@ just in case.
 #+BEGIN_SRC shell
   if [ -z "$__BAUER_ADD_PATHS" ]; then
     export __BAUER_ADD_PATHS=1
-    PATH=$HOME/.nix-profile/bin:$PREFIX/bin:@PATH@:$PATH
-    INFOPATH=$HOME/.nix-profile/share/info:@INFOPATH@:$INFOPATH
-    MANPATH=:$HOME/.nix-profile/share/man:@MANPATH@:$MANPATH
-    XDG_DATA_DIRS=$HOME/.nix-profile/share:@XDG_DATA_DIRS@:$XDG_DATA_DIRS
+    export PATH=$HOME/bin:$HOME/.nix-profile/bin:$PREFIX/bin:@PATH@${PATH:+:$PATH}
+    export INFOPATH=$HOME/.nix-profile/share/info:@INFOPATH@${INFOPATH:+:$INFOPATH}
+    export MANPATH=:$HOME/.nix-profile/share/man:@MANPATH@${MANPATH:+:$MANPATH}
+    export XDG_DATA_DIRS=$HOME/.nix-profile/share:@XDG_DATA_DIRS@${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}
+    export TERMINFO_DIRS=@TERMINFO_DIRS@${TERMINFO_DIRS:+:$TERMINFO_DIRS}
   fi
 
-  HISTFILE=$HOME/.history
-  HISTSIZE=50000
-  export SAVEHIST="$HISTSIZE"
+  HISTFILE=$HOME/.zsh_history
+  [ "${HISTSIZE:-0}" -lt 50000 ] && HISTSIZE=50000
+  [ "${SAVEHIST:-0}" -lt 10000 ] && SAVEHIST=10000
 
   export CVS_RSH=ssh
 
@@ -3498,6 +3526,14 @@ just in case.
   else
     export EDITOR='emacsclient -a emacs'
   fi
+
+  export LESS='-F -g -i -R'
+
+  if [ -n "${SSH_CONNECTION-}" ]; then
+    export PINENTRY_USER_DATA=USE_CURSES=1
+  fi
+
+  export PS1='\e[34m\u@\h:\e[36m\w \e[33m\$\e[0m '
 #+END_SRC
 
 Dircolors
@@ -3528,7 +3564,20 @@ alias ..="cd .." \
       chgrp='chgrp --preserve-root' \
       curl='curl -L' \
       upgrade_bauer='git -C $HOME/.local/share/bauer pull && nix-env -if $HOME/.local/share/bauer' \
-      upgrade=upgrade_bauer
+      upgrade=upgrade_bauer \
+      df='df -h' \
+      du='du -h'
+
+open() {
+  if command -v open > /dev/null; then
+    command open "$@"
+  elif command -v xdg-open > /dev/null; then
+    xdg-open "$@"
+  else
+    echo Can’t find open.
+    exit 1
+  fi
+}
 
 help() {
   if command -v xdg-open > /dev/null; then
@@ -3544,6 +3593,20 @@ help() {
 }
 
 set -o noclobber
+set -o notify
+
+if [ -n "${BASH_VERSION-}" ]; then
+  HISTCONTROL=ignoredups:erasedups:ignorespace
+  shopt -s autocd \
+           cdable_vars \
+           cdspell \
+           checkjobs \
+           direxpand \
+           dirspell \
+           histappend \
+           histverify \
+           no_empty_cmd_completion
+fi
 
 if [ "$TERM" != "dumb" ]; then
     if [ "$TERM" != eterm-color ]; then
@@ -3555,7 +3618,8 @@ if [ "$TERM" != "dumb" ]; then
     fi
     alias grep='grep --color=auto' \
           egrep='grep -E --color=auto' \
-          diff='diff --color=auto'
+          diff='diff --color=auto' \
+          rsync='rsync --progress --human-readable'
 else
     alias l="ls -lF" \
           grep='grep' \
@@ -3575,7 +3639,7 @@ fi
 Last, we source the HOME profile to make sure it is used by zsh.
 
 #+BEGIN_SRC shell
-if [ -f "$HOME/.profile" ] && [ -z "$__BAUER_SOURCED_PROFILE" ]; then
+if [ -f "$HOME/.profile" ] && [ -z "${__BAUER_SOURCED_PROFILE-}" ]; then
   __BAUER_SOURCED_PROFILE=1
   # shellcheck source=/dev/null
   . "$HOME/.profile"
@@ -3602,9 +3666,9 @@ Handle dumb options.
 #+BEGIN_SRC shell
 case "$TERM" in
     dumb)
-        unsetopt zle \
-                 prompt_cr \
-                 prompt_subst
+        setopt no_zle \
+               no_prompt_cr \
+               no_prompt_subst
         PS1='$ '
         PROMPT='$ '
         return
@@ -3621,29 +3685,23 @@ Turn on ZSH-specific options.
 #+BEGIN_SRC shell
 setopt always_to_end \
        auto_cd \
-       auto_menu \
        auto_name_dirs \
        auto_pushd \
        cdable_vars \
        complete_in_word \
+       correct \
+       correct_all \
        extended_history \
-       hist_expire_dups_first \
-       hist_find_no_dups \
-       hist_ignore_dups \
        hist_ignore_space \
        hist_reduce_blanks \
        hist_save_no_dups \
        hist_verify \
-       interactive_comments \
        inc_append_history_time \
+       interactive_comments \
        long_list_jobs \
        multios \
-       no_beep \
        prompt_subst \
-       pushd_ignore_dups \
-       pushdminus \
-       transient_rprompt \
-       menu_complete
+       transient_rprompt
 #+END_SRC
 
 Load up site-functions in ZSH. Use XDG_DATA_DIRS variable. Then we use this to
@@ -3652,7 +3710,7 @@ initialize completions.
 #+BEGIN_SRC shell
 if [ "$TERM" != dumb-emacs-ansi ]; then
   # shellcheck disable=SC2154
-  for dir in @completions@/share ${(s.:.)XDG_DATA_DIRS}; do
+  for dir in @completions@/share ${(s.:.)XDG_DATA_DIRS-}; do
     if [ -d "$dir/zsh/site-functions" ]; then
       fpath+=$dir/zsh/site-functions
     fi
@@ -3679,8 +3737,6 @@ autoload -U tetris
 autoload -U bracketed-paste-magic
 zle -N bracketed-paste bracketed-paste-magic
 
-autoload -U up-line-or-beginning-search
-autoload -U down-line-or-beginning-search
 bindkey ' ' magic-space
 bindkey ';5D' emacs-backward-word
 bindkey ';5C' emacs-forward-word
@@ -3691,6 +3747,8 @@ Zstyle completions.
 
 #+BEGIN_SRC shell
 zstyle ':completion:*' ignored-patterns '*~' '_*' '*\\\#*\\\#'
+zstyle ':completion:*:*:*:users' ignored-patterns 'nixbld*' '_*' 'systemd-*' \
+  apache avahi daemon dbus messagebus nobody nginx nscd polkituser rpc sshd
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z-_}={A-Za-z_-}' 'r:|=*' 'l:|=* r:|=*'
 zstyle ':completion:*' special-dirs yes
@@ -3711,29 +3769,56 @@ Turn on prompt with colors.
 
 #+BEGIN_SRC shell
 PROMPT='%F{blue}'
-if [ -n "$SSH_CLIENT" ]; then
+if [ -n "${SSH_CONNECTION-}" ]; then
     PROMPT+='ssh://%n@'
-    echo "$SSH_CLIENT" | read ip outport inport
-    if [ "$ip" != 127.0.0.1 ] && [ "$ip" != ::1 ] && \
-       command -v nslookup > /dev/null; then
-        host="$(nslookup "$ip" | sed 's/.*arpa.*name = \(.*\)/\1/' | sed 's/\.$//')"
-        if [ -n "$host" ]; then
-            PROMPT+="$host"
-        else
-            PROMPT+='%M'
+    echo "$SSH_CONNECTION" | read client_ip client_port server_ip server_port
+
+    hostname=
+
+    if [[ "$server_ip" =~ fe80::* ]]; then
+        server_ip="$(echo "$server_ip" | sed 's,%[a-z0-9]*$,,')"
+    fi
+
+    if [[ "$client_ip" =~ fe80::* ]]; then
+        client_ip="$(echo "$client_ip" | sed 's,%[a-z0-9]*$,,')"
+    fi
+
+    # localhost
+    if [ "$server_ip" = 127.0.0.1 ] || [ "$server_ip" = ::1 ] || [ "$server_ip" = "$client_ip" ]; then
+        hostname=localhost
+
+    # private network
+    elif { [[ "$server_ip" =~ 192.168.* ]] && [[ "$client_ip" =~ 192.168.* ]] } || { [[ "$server_ip" =~ 10.* ]] && [[ "$client_ip" =~ 10.* ]] } || { [[ "$server_ip" =~ fe80::* ]] && [[ "$client_ip" =~ fe80::* ]] }; then
+        if command -v avahi-resolve-address > /dev/null; then
+            hostname="$(avahi-resolve-address "$server_ip" | awk '{ print $2 }')"
         fi
+
+        if [ -z "$hostname" ] && command -v dig > /dev/null; then
+            hostname="$(dig +noall +answer -x "$server_ip" | awk '{ print $5 }' | sed 's,\.$,,')"
+        fi
+    fi
+
+    if [ -z "$hostname" ] && command -v getent > /dev/null; then
+        hostname="$(getent hosts "$server_ip" | awk '{ print $2 }')"
+    fi
+
+    if [ -n "$hostname" ]; then
+        PROMPT+="$hostname"
     else
-        PROMPT+='%M'
+        PROMPT+=%M
     fi
-    if [ "$inport" -ne 22 ]; then
-        PROMPT+=":$inport"
+
+    if [ "$server_port" -ne 22 ]; then
+        PROMPT+=":$server_port"
     fi
-    PROMPT+=' '
-    unset host ip outport inport
+
+    unset client_ip client_port server_ip server_port hostname
+
+    PROMPT+='%F{cyan}%/'
 else
-    PROMPT+='%n@%M:'
+    PROMPT+='%n@%M:%F{cyan}%~'
 fi
-PROMPT+='%F{cyan}%~%F{yellow} $ '
+PROMPT+='%F{yellow} $ '
 PROMPT+='%F{reset}'
 export PROMPT
 
@@ -3759,11 +3844,11 @@ Setup Apple Terminal so that CWD is shown.
 
 #+BEGIN_SRC shell
 update_apple_terminal_cwd () {
-    printf '\e]7;%s\a' "file://$HOSTNAME${PWD// /%20}"
+    printf '\e]7;%s\a' "file://${HOST-}${PWD// /%20}"
 }
 
 if [ "$TERM_PROGRAM" = Apple_Terminal ] \
-   && [ -z "$INSIDE_EMACS" ] \
+   && [ -z "${INSIDE_EMACS-}" ] \
    && [ -n "$TERM_SESSION_ID" ]; then
     chpwd_functions+=(update_apple_terminal_cwd)
     update_apple_terminal_cwd
@@ -3779,7 +3864,7 @@ This just sources everything in the =/etc/profile.d= dir. =PREFIX= can be
 used to reference the Nix output dir.
 
 #+BEGIN_SRC shell
-export PREFIX=@out@
+PREFIX=@out@
 #+END_SRC
 
 This will source everything in =/etc/profile.d=. We skip =nix-daemon.sh= because
@@ -3788,7 +3873,7 @@ single user mode. We need @out@ to come after $HOME so that it gets the last
 word in these settings.
 
 #+BEGIN_SRC shell
-if [ -n "$BASH_VERSION" ]; then
+if [ -n "${BASH_VERSION-}" ]; then
     shopt -s nullglob
 fi
 for i in "$HOME"/.nix-profile/etc/profile.d/*.sh @out@/etc/profile.d/*.sh; do
@@ -3858,7 +3943,7 @@ otherwise zsh will default to 500 and not save at all!
     (setenv "HISTFILE" (eval val))
     (custom-set-default sym val))
 
-  (defcustom history-file (expand-file-name ".history" (getenv "HOME"))
+  (defcustom history-file (expand-file-name ".zsh_history" (getenv "HOME"))
     "The history file to use."
     :type 'string
     :group 'bauer
@@ -3886,13 +3971,15 @@ Set some more misc. vars.
 
 #+BEGIN_SRC emacs-lisp
   (append-envs ":"
-   `("PATH" ,exec-path)
    `("MANPATH" ,man-path))
+  (prepend-envs ":"
+   `("PATH" ,exec-path))
   (set-envs
    `("XDG_DATA_DIRS" ,(string-join `(,(expand-file-name "share"
                                                         output-directory)
                                      "@XDG_DATA_DIRS@")
                                    ":"))
+   `("TERMINFO_DIRS" "@TERMINFO_DIRS@")
    `("INFOPATH" ,(string-join `(,(expand-file-name "share/info"
                                                    output-directory)
                                 "@INFOPATH@")
@@ -3959,7 +4046,6 @@ Set paths provided by Nix,
    '(haskell-check-command "@hlint@/bin/hlint")
    '(haskell-hoogle-command "@hoogle@/bin/hoogle")
    '(haskell-hasktags-path "@hasktags@/bin/hasktags")
-   '(ispell-program-name "@aspell@/bin/aspell")
    '(ispell-grep-command "@gnugrep@/bin/grep")
    '(irony-cmake-executable "@cmake@/bin/cmake")
    '(jka-compr-info-compress-program "@ncompress@/bin/compress")
@@ -4209,7 +4295,7 @@ echo if they are not already installed.
 
 if ! command -v nix-env >/dev/null 2>&1; then
     nix_installer=$(mktemp)
-    curl -s https://nixos.org/nix/install \
+    curl -L -s https://nixos.org/nix/install \
       > $nix_installer
     sh $nix_installer
     [ -f $HOME/.profile ] && . $HOME/.profile
@@ -4222,7 +4308,7 @@ Check for Git. Install if it’s not there.
 if ! command -v git >/dev/null 2>&1 || \
    { [ "$(uname)" = Darwin ] && \
      [ "$(command -v git)" = /usr/bin/git ] &&
-     xcode-select -p 1>/dev/null; }; then
+     xcode-select -p 2>/dev/null; }; then
     nix-env -iA nixpkgs.git || nix-env -iA nixos.git
 fi
 #+END_SRC
@@ -4242,8 +4328,10 @@ If we can’t find default.nix then we’ll clone from GitHub. This will be stor
 if ! [ -f default.nix ]; then
     repo_dir=$HOME/.local/share/bauer
     mkdir -p $(dirname $repo_dir)
-    git clone https://github.com/matthewbauer/bauer \
-              $repo_dir
+    if ! [ -d $repo_dir/.git ]; then
+      git clone https://github.com/matthewbauer/bauer \
+                $repo_dir
+    fi
     cd $repo_dir
 fi
 #+END_SRC
@@ -4272,7 +4360,7 @@ echo
 echo To do this, just run:
 echo $ source $HOME/.nix-profile/etc/profile
 
-if [ "$(basename $SHELL)" = zsh ]; then
+if [ -n "$ZSH_NAME" ]; then
     source $HOME/.nix-profile/etc/zshrc
     echo $ source $HOME/.nix-profile/etc/zshrc
 fi
@@ -4475,12 +4563,12 @@ substitution of all the attributes set.
       inherit ripgrep ag
               coreutils findutils openssh
               zsh diffutils man gawk
-              gnugrep gnused cacert git aspell;
+              gnugrep gnused cacert git;
 
       inherit manpages sysheaders sysframeworks
               schemas bins infopages;
 
-      inherit MANPATH PATH XDG_DATA_DIRS INFOPATH;
+      inherit MANPATH PATH XDG_DATA_DIRS INFOPATH TERMINFO_DIRS;
     } // (lib.optionalAttrs big {
       gpg = gnupg1compat;
       inherit ant perl perlcritic
@@ -4504,7 +4592,8 @@ substitution of all the attributes set.
         --subst-var-by PATH ${PATH} \
         --subst-var-by INFOPATH ${INFOPATH} \
         --subst-var-by MANPATH ${MANPATH} \
-        --subst-var-by XDG_DATA_DIRS ${XDG_DATA_DIRS}
+        --subst-var-by XDG_DATA_DIRS ${XDG_DATA_DIRS} \
+        --subst-var-by TERMINFO_DIRS ${TERMINFO_DIRS}
   '';
 #+END_SRC
 
@@ -4925,6 +5014,8 @@ the most direct access to. Global directories should only contain system paths.
   INFOPATH = "${infopages}/share/info";
   XDG_DATA_DIRS = lib.makeSearchPathOutput "xdg" "share"
     ([ xdg-data ] ++ global-dirs);
+  TERMINFO_DIRS = lib.makeSearchPathOutput "terminfo" "share/terminfo"
+    ([ pkgs.ncurses ]);
 #+END_SRC
 
 Finally, build the final environment. This only contains Emacs and ZSH, which
@@ -4970,13 +5061,14 @@ in buildEnv {
     MANPATH = makeSearchPath "share/man" [manpages];
     INFOPATH = makeSearchPath "share/info" [infopages];
     XDG_DATA_DIRS = makeSearchPath "share" [xdg-data];
+    TERMINFO_DIRS = makeSearchPath "share/terminfo" [terminfo];
   };
   paths = [
     myEmacs
     (runCommand "my-profile" {
       emacs = myEmacs;
       inherit (pkgs) cacert;
-      inherit PATH MANPATH XDG_DATA_DIRS INFOPATH;
+      inherit PATH MANPATH XDG_DATA_DIRS INFOPATH TERMINFO_DIRS;
     } ''
       mkdir -p $out/etc/profile.d
       substituteAll ${./profile.sh} $out/etc/profile.d/my-profile.sh
@@ -4984,7 +5076,8 @@ in buildEnv {
         --subst-var-by PATH ${PATH} \
         --subst-var-by INFOPATH ${INFOPATH} \
         --subst-var-by MANPATH ${MANPATH} \
-        --subst-var-by XDG_DATA_DIRS ${XDG_DATA_DIRS}
+        --subst-var-by XDG_DATA_DIRS ${XDG_DATA_DIRS} \
+        --subst-var-by TERMINFO_DIRS ${TERMINFO_DIRS}
     '')
     pkgs.git
   ];
@@ -5250,6 +5343,7 @@ in {
       variables = with lib; {
         PATH = [bauer.PATH];
         XDG_DATA_DIRS = [bauer.XDG_DATA_DIRS];
+        TERMINFO_DIRS = [bauer.TERMINFO_DIRS];
         MANPATH = [bauer.MANPATH];
         INFOPATH = [bauer.INFOPATH];
       };
@@ -5359,7 +5453,7 @@ allow overriding your current =$HOME= files.
 
 #+BEGIN_SRC shell
 if [ $# -eq 0 ]; then
-    echo Usage: $0 GIST_ID >&2
+    echo Usage: "$0" GIST_ID >&2
     exit 1
 fi
 
@@ -5377,8 +5471,8 @@ while [ $# -gt 0 ]; do
                 echo Multiple Gist ids passed! >&2
                 exit 1
             fi
-            GIST_ID=$1
-            echo Using gist $GIST_ID >&2
+            GIST_ID="$1"
+            echo Using gist "$GIST_ID"x >&2
             shift
             ;;
     esac
@@ -5389,15 +5483,15 @@ if [ -z "$GIST_ID" ]; then
     exit 1
 fi
 
-gistdir=$(mktemp -d)
+gistdir="$(mktemp -d)"
 setup() {
-    git clone git@github.com:$GIST_ID.git $gistdir
-    pushd $gistdir >/dev/null
+    git clone git@github.com:"$GIST_ID".git "$gistdir"
+    pushd "$gistdir" >/dev/null
 }
 
 cleanup() {
     popd >/dev/null
-    rm -rf $gistdir
+    rm -rf "$gistdir"
 }
 
 setup
@@ -5411,32 +5505,43 @@ for f in *; do
         continue
     fi
     if ! [ -f "$f" ]; then
-        echo Skipping $f, not a file >&2
+        echo Skipping "$f", not a file >&2
         continue
     fi
     DEST=
     case "$f" in
         settings.el) DEST="$HOME/.emacs.d/settings.el" ;;
         .sshconfig) DEST="$HOME/.ssh/config" ;;
+        .ssh_authorized_keys) DEST="$HOME/.ssh/authorized_keys" ;;
+        nix.conf) DEST="$HOME/.config/nix/nix.conf" ;;
+        .gitignore) DEST="$HOME/.config/git/ignore" ;;
+        .gitconfig) DEST="$HOME/.config/git/config" ;;
         *) DEST="$HOME/$f" ;;
     esac
     CONCAT=
     case "$f" in
         .authinfo) CONCAT=1 ;;
         .sshconfig) CONCAT=1 ;;
+        .ssh_authorized_keys) CONCAT=1 ;;
+        .gitignore) CONCAT=1 ;;
+        nix.conf) CONCAT=1 ;;
     esac
     if [ -z "$DEST" ]; then
-        echo Skipping $f, no destination found >&2
+        echo Skipping "$f", no destination found >&2
         continue
     fi
     if [ -f "$DEST" ] && [ -z "$FORCE" ] && [ -z "$CONCAT" ]; then
-        echo Skipping $f, destination already exists >&2
+        echo Skipping "$f", destination already exists >&2
         continue
     fi
+    mkdir -p "$(dirname "$DEST")"
     if [ -n "$CONCAT" ]; then
         cat "$f" >> "$DEST"
     else
         cp "$f" "$DEST"
+    fi
+    if [ "$f" = .authinfo ]; then
+        chmod 600 "$DEST"
     fi
 done
 #+END_SRC
