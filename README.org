@@ -17,7 +17,7 @@
 #+keywords: dotfiles config ide emacs nix bauer
 #+html_head: <link rel="stylesheet" href="https://matthewbauer.us/style.css" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 #+link_home: https://matthewbauer.us
-#+link_up: http://matthewbauer.us/bauer/
+#+link_up: https://matthewbauer.us/bauer/
 #+version: 1.5.1
 
 This ORG-mode file generates an Emacs configuration. I am calling it an
@@ -1837,14 +1837,12 @@ this. Perhaps a theme randomizer upon booting Emacs would be nice. - zennad
     )
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp
-  (unless (display-graphic-p)
-    (set-background-color "black")
-    (set-foreground-color "white"))
-#+END_SRC
+***** Other themes
 
 While darkokai is the default, other themes can be used as well! For
 instance spacemacs-theme can be enabled:
+
+****** Spacemacs theme
 
 #+BEGIN_SRC emacs-lisp :tangle no
   (use-package spacemacs-common
@@ -1854,8 +1852,30 @@ instance spacemacs-theme can be enabled:
     (add-to-list 'custom-theme-load-path
                  (file-name-directory
                    (locate-library "spacemacs-theme-pkg")))
-    ;;(load-theme 'spacemacs-dark t))
+    (load-theme 'spacemacs-dark t))
 #+END_SRC
+
+****** Monokai-Alt Theme
+
+#+BEGIN_SRC emacs-lisp
+  (use-package monokai-alt-theme
+    ;; :ensure monokai-alt-theme
+    :if window-system
+    )
+#+END_SRC
+
+****** Monokai-Pro Theme
+
+#+BEGIN_SRC emacs-lisp
+  (use-package monokai-pro-theme
+    ;; :ensure monokai-pro-theme
+    :if window-system
+    )
+#+END_SRC
+
+****** Apropospriate theme
+
+[[https://github.com/waymondo/apropospriate-theme][GitHub]]
 
 #+BEGIN_SRC emacs-lisp
   (use-package apropospriate-theme
@@ -1864,26 +1884,19 @@ instance spacemacs-theme can be enabled:
     (add-to-list 'custom-theme-load-path
                  (file-name-directory
                    (locate-library "apropospriate-theme")))
-    ;;(load-theme 'apropospriate-dark t))
+    (load-theme 'apropospriate-dark t))
 #+END_SRC
 
-***** Monokai-Alt Theme
-#+BEGIN_SRC emacs-lisp
-  (use-package monokai-alt-theme
-    ;; :ensure monokai-alt-theme
-    :if window-system
-    )
-#+END_SRC
+****** Terminal theme
 
-***** Monokai-Pro Theme
 #+BEGIN_SRC emacs-lisp
-  (use-package monokai-pro-theme
-    ;; :ensure monokai-pro-theme
-    :if window-system
-    )
+  (unless (display-graphic-p)
+    (set-background-color "black")
+    (set-foreground-color "white"))
 #+END_SRC
 
 **** try
+
 [[https://github.com/larstvei/Try][GitHub]]
 
 #+BEGIN_SRC emacs-lisp
@@ -2197,6 +2210,7 @@ You may want to enable this to persist info across Emacs sessions.
     :hook ((prog-mode . display-line-numbers-mode)
            (conf-mode . display-line-numbers-mode)))
 #+END_SRC
+
 **** eldoc
 
 Provides some info for the thing at the point.
@@ -3474,6 +3488,7 @@ https://github.com/cbowdon/daemons.el
 #+END_SRC
 
 **** with-editor
+
 #+BEGIN_SRC emacs-lisp
   (use-package with-editor
     :disabled
@@ -3482,6 +3497,7 @@ https://github.com/cbowdon/daemons.el
 #+END_SRC
 
 **** zlc
+
 #+BEGIN_SRC emacs-lisp
   (use-package zlc)
 #+END_SRC
@@ -3491,16 +3507,19 @@ https://github.com/cbowdon/daemons.el
     These are some just some games that I like which I have added
 
 **** chess
+
 #+BEGIN_SRC emacs-lisp
   (use-package chess)
 #+END_SRC
 
 **** sudoku
+
 #+BEGIN_SRC emacs-lisp
   (use-package sudoku)
 #+END_SRC
 
 ** END
+
 #+BEGIN_SRC emacs-lisp
   (provide 'default)
 #+END_SRC
