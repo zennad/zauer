@@ -1,0 +1,21 @@
+* Nix fails during building
+** elpa packages out of date
+   Some of the packages which this derivation tries to download are
+   out of date and are not provided at the location searched.
+
+*** Auto-updating use-package
+    I would like the package list constructor to automatically search
+    of the latest version of a listed package if the version required
+    is not specified. Adding functionality for it to search for a
+    specific version would be good as well.
+
+    It would be good to implement it in line with the nix philosophy,
+    i.e. being able to specify el-packages by their hash or having the
+    archive brought in as a flake input
+
+
+*** have a crack at improving the build stage for the el-packages?
+    Matthew Bauer has left a note around the stage which builds all
+    the packages to be included with emacs that it is a dirty design
+    and they would be up for it being improved.
+    Might be worth having a crack?
