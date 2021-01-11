@@ -15,19 +15,17 @@
 (require 'json)
 (require 'use-package)
 (require 'package)
-(eval-when-compile
-  (require 'cl))
 
 (defun use-package-list (script)
   "Count use-package declarations listed in SCRIPT."
 
   (defvar use-package-list--is-running t)
-  (lexical-let ((use-package-verbose t)
-                (use-package-debug t)
-                (use-package-always-ensure nil)
-                (use-package-always-defer t)
-                (use-package-list--packages nil)
-                (use-package-ensure-function 'ignore))
+  (let ((use-package-verbose t)
+        (use-package-debug t)
+        (use-package-always-ensure nil)
+        (use-package-always-defer t)
+        (use-package-list--packages nil)
+        (use-package-ensure-function 'ignore))
     (advice-add 'use-package
                 :before (lambda (name &rest args)
                           (unless (or (and (member :disabled args)
@@ -56,7 +54,9 @@
 
     (load script nil nil t)
 
-    (princ (json-encode use-package-list--packages))
+    (princ (if use-package-list--packages
+               (json-encode use-package-list--packages)
+             "[]"))
 
     use-package-list--packages))
 

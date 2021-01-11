@@ -18,7 +18,7 @@
 #+html_head: <link rel="stylesheet" href="https://matthewbauer.us/style.css" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 #+link_home: https://matthewbauer.us
 #+link_up: https://matthewbauer.us/bauer/
-#+version: 1.5.1
+#+version: 1.5.3
 
 This ORG-mode file generates an Emacs configuration. I am calling it an
 [[https://www.gnu.org/s/emacs/][Emacs]]+[[https://nixos.org][Nix]] IDE. That is, the Emacs configuration is /integrated/ with hardcoded
@@ -164,20 +164,59 @@ compiling phases used later.
 When we are within a terminal we want to be able to use the mouse, so
 =xterm-mouse-mode= is enabled here.
 
-#+BEGIN_SRC emacs-lisp
-  (unless (display-graphic-p)
-    (xterm-mouse-mode 1))
-#+END_SRC
-
-Hack to avoid tty-run-terminal-initialization on non-graphical Emacs.
+iTerm doesn’t seem to support xterm color reporting correctly, so we use the
+COLORFGBG method.
 
 #+BEGIN_SRC emacs-lisp
   (unless (display-graphic-p)
-    (advice-add #'tty-run-terminal-initialization :override #'ignore)
-    (add-hook 'window-setup-hook
-      (lambda ()
-        (advice-remove #'tty-run-terminal-initialization #'ignore)
-        (tty-run-terminal-initialization (selected-frame) nil t))))
+    (xterm-mouse-mode 1)
+
+    (when (string-equal (getenv "TERM_PROGRAM") "iTerm.app")
+      (add-hook 'after-make-frame-functions
+                '(lambda
+                   ;; Take advantage of iterm2's CSI u support (https://gitlab.com/gnachman/iterm2/-/issues/8382).
+                   (xterm--init-modify-other-keys)
+
+                   ;; Courtesy https://emacs.stackexchange.com/a/13957, modified per
+                   ;; https://gitlab.com/gnachman/iterm2/-/issues/8382#note_365264207
+                   (defun character-apply-modifiers (c &rest modifiers)
+                     "Apply modifiers to the character C.
+  MODIFIERS must be a list of symbols amongst (meta control shift).
+  Return an event vector."
+                     (if (memq 'control modifiers) (setq c (if (and (<= ?a c) (<= c ?z))
+                                                               (logand c ?\x1f)
+                                                             (logior (lsh 1 26) c))))
+                     (if (memq 'meta modifiers) (setq c (logior (lsh 1 27) c)))
+                     (if (memq 'shift modifiers) (setq c (logior (lsh 1 25) c)))
+                     (vector c))
+                   (when (and (boundp 'xterm-extra-capabilities) (boundp 'xterm-function-map))
+                     (let ((c 32))
+                       (while (<= c 126)
+                         (mapc (lambda (x)
+                                 (define-key xterm-function-map (format (car x) c)
+                                   (apply 'character-apply-modifiers c (cdr x))))
+                               '(;; with ?.VT100.formatOtherKeys: 0
+                                 ("\e\[27;3;%d~" meta)
+                                 ("\e\[27;5;%d~" control)
+                                 ("\e\[27;6;%d~" control shift)
+                                 ("\e\[27;7;%d~" control meta)
+                                 ("\e\[27;8;%d~" control meta shift)
+                                 ;; with ?.VT100.formatOtherKeys: 1
+                                 ("\e\[%d;3u" meta)
+                                 ("\e\[%d;5u" control)
+                                 ("\e\[%d;6u" control shift)
+                                 ("\e\[%d;7u" control meta)
+                                 ("\e\[%d;8u" control meta shift)))
+                         (setq c (1+ c)))))
+                   ))
+
+      ;; ;; xterm--report-background-handler init fails, but we can still
+      ;; ;; use COLORFGBG
+      ;; (defvar xterm-extra-capabilities)
+      ;; (setq xterm-extra-capabilities '(modifyOtherKeys getSelection setSelection))
+      (autoload 'rxvt-set-background-mode "term/rxvt")
+      (add-hook 'window-setup-hook 'rxvt-set-background-mode)
+      ))
 #+END_SRC
 
 ** Custom config
@@ -217,6 +256,8 @@ The format of arguments to =set-defaults= is identical to the one used by
 | auto-revert-interval                          | 2                 |
 | auto-revert-verbose                           | nil               |
 | backward-delete-char-untabify-method          | 'hungry           |
+| bidi-inhibit-bpa                              | t                 |
+| bidi-paragraph-direction                      | 'left-to-right    |
 | bookmark-save-flag                            | 1                 |
 | checkdoc-spellcheck-documentation-flag        | t                 |
 | comint-input-ignoredups                       | t                 |
@@ -312,13 +353,13 @@ The format of arguments to =set-defaults= is identical to the one used by
 | nsm-save-host-names                           | t                 |
 | nxml-sexp-element-flag                        | t                 |
 | nxml-slash-auto-complete-flag                 | t                 |
+| org-catch-invisible-edits                     | 'smart            |
 | org-confirm-babel-evaluate                    | nil               |
 | org-export-with-toc                           | nil               |
 | org-html-htmlize-output-type                  | 'css              |
 | org-log-done                                  | 'time             |
 | org-special-ctrl-a/e                          | t                 |
 | org-support-shift-select                      | t                 |
-| projectile-ignored-project-function           | 'file-remote-p    |
 | projectile-require-project-root               | t                 |
 | projectile-switch-project-action              | 'projectile-dired |
 | projectile-verbose                            | nil               |
@@ -354,7 +395,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | text-quoting-style                            | 'quote            |
 | tls-checktrust                                | t                 |
 | tool-bar-mode                                 | nil               |
-| undo-limit                                    | 800000            |
+| undo-limit                                    | 80000000          |
 | undo-strong-limit                             | 12000000          |
 | undo-outer-limit                              | 120000000         |
 | undo-tree-auto-save-history                   | t                 |
@@ -365,6 +406,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | vc-make-backup-files                          | t                 |
 | version-control                               | t                 |
 | view-read-only                                | t                 |
+| window-combination-resize                     | t                 |
 | whitespace-line-column                        | 120               |
 | which-key-idle-delay                          | 0.4               |
 | which-key-idle-secondary-delay                | 0.4               |
@@ -435,13 +477,15 @@ Misc. defaults that don’t fit above. TODO: move these above.
    '(completion-styles '(basic
                          partial-completion
                          emacs22
-                         substring))
+                         substring
+                         flex))
    '(custom-file (expand-file-name
                   "settings.el"
                   user-emacs-directory))
-   '(dired-listing-switches "-alhv")
+   '(dired-listing-switches "-alhv --group-directories-first")
    '(dired-omit-files "^\\.\\|^#.*#$")
-   '(dirtrack-list '("^[^:]*:\\(?:\e\\[[0-9]+m\\)?\\([^$#\e]+\\)" 1))
+   '(dired-dwim-target t)
+   '(dirtrack-list '("^\\(?:\\[[0-9]+m\\)?\\(/[^$#]+\\)" 1))
    '(eshell-banner-message "")
    '(eshell-ls-dired-initial-args '("-h"))
    '(eshell-ls-initial-args "-h")
@@ -490,6 +534,9 @@ Misc. defaults that don’t fit above. TODO: move these above.
        (mark " " (name 16 -1) " " filename)))
    '(ibuffer-never-show-predicates '("\\*magit-\\(diff\\|process\\):"))
    '(ispell-extra-args '("--sug-mode=ultra"))
+   '(isearch-lazy-count t)
+   '(isearch-yank-on-move 'shift)
+   '(isearch-allow-scroll 'unlimited)
    '(magit-blame-disable-modes '(fci-mode view-mode yascroll-bar-mode))
    '(magit-process-find-password-functions
      '(magit-process-password-auth-source))
@@ -563,7 +610,6 @@ Misc. defaults that don’t fit above. TODO: move these above.
      '(("melpa" . "https://melpa.org/packages/")
        ("org" . "https://orgmode.org/elpa/")
        ("gnu" . "https://elpa.gnu.org/packages/")))
-   '(projectile-globally-ignored-files '(".DS_Store" "TAGS"))
    '(projectile-ignored-project-function
      (lambda (file) (or (file-remote-p file)
                         (string-prefix-p "/nix" file)
@@ -651,7 +697,8 @@ This file allows users to override the above defaults. This will mean you
 can use custom as you normally would in vanilla Emacs.
 
 #+BEGIN_SRC emacs-lisp
-  (load custom-file t)
+  (when custom-file
+    (load custom-file t))
 #+END_SRC
 
 ** Setup use-package
@@ -835,7 +882,7 @@ better navigations.
 | <C-return>      | other-window                    |
 | <C-M-return>    | other-window                    |
 | s-o             | other-window                    |
-| C-z             | delete-other-windows            |
+| ESC o           | other-window                    |
 | s-1             | other-frame                     |
 | M-+             | text-scale-increase             |
 | M-_             | text-scale-decrease             |
@@ -882,6 +929,9 @@ better navigations.
 | M-s m           | multi-occur                     |
 | M-s M           | multi-occur-in-matching-buffers |
 | C-c i i         | imenu                           |
+| s-v             | scroll-down-command             |
+| s-M-e           | end-of-defun                    |
+| s-M-a           | beginning-of-defun              |
 
 #+BEGIN_SRC emacs-lisp :var keybinds=keybinds
   (mapc (lambda (x) (bind-key (car x) (intern (cadr x)))) keybinds)
@@ -1052,7 +1102,6 @@ Automatically indent code as you type. Only enabled for Lisp currently.
 
 #+BEGIN_SRC emacs-lisp
   (use-package align
-    :bind ("M-[" . align)
     :config
     (add-to-list 'align-rules-list
 		 '(haskell-types
@@ -1081,11 +1130,9 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
 
 #+BEGIN_SRC emacs-lisp
   (use-package company
-    :commands global-company-mode
     :delight
-    :demand
+    :defer 1
     :preface
-    (load "company-autoloads" t t)
     (defun company-complete-common-or-cycle-backward ()
       "Complete common prefix or cycle backward."
       (interactive)
@@ -1120,7 +1167,8 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
     :config
     (advice-add 'completion-at-point
                 :around (lambda (old-function &rest args)
-                          (if company-mode
+                          (if (and company-mode
+                                   (not (memq major-mode '(eshell-mode org-mode))))
                               (apply 'company-complete-common-or-cycle args)
                             (apply old-function args))))
     (global-company-mode))
@@ -1152,6 +1200,7 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
                                                   company-auctex-symbols
                                                   company-capf))))))
 #+END_SRC
+
 ***** company-coq
 #+BEGIN_SRC emacs-lisp
   (use-package company-coq
@@ -1181,6 +1230,7 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
 ***** company-math
 #+BEGIN_SRC emacs-lisp
   (use-package company-math
+    :disabled
     :preface
     (autoload 'company-math-symbols-latex "company-math")
     (autoload 'company-latex-commands "company-math")
@@ -1223,8 +1273,6 @@ info.
 #+BEGIN_SRC emacs-lisp
   (use-package counsel
     :disabled
-    :commands (counsel-mode counsel-descbinds
-               counsel-grep-or-swiper)
 
     ;; counsel doesn’t work well with windows drives
     ;; see https://github.com/abo-abo/swiper/issues/773
@@ -1263,9 +1311,7 @@ info.
 
 #+BEGIN_SRC emacs-lisp
   (use-package ivy
-    :commands (ivy-read)
-    :bind (([remap list-buffers] . ivy-switch-buffer)
-           ([remap switch-to-buffer] . ivy-switch-buffer)
+    :bind (([remap switch-to-buffer] . ivy-switch-buffer)
            ([remap switch-to-buffer-other-window] .
             ivy-switch-buffer-other-window)
            :package ivy
@@ -1276,10 +1322,7 @@ info.
     (defvar magit-completing-read-function)
     (defvar projector-completion-system)
     (setq projectile-completion-system 'ivy
-          magit-completing-read-function 'ivy-completing-read)
-    :commands (ivy-completing-read
-               ivy-completion-in-region
-               swiper))
+          magit-completing-read-function 'ivy-completing-read))
 #+END_SRC
 
 **** diff-hl
@@ -1304,7 +1347,7 @@ indications show where a file has been edited from the last Git commit.
 
 [[https://github.com/jscheid/dtrt-indent][GitHub]]
 
-This mode will try to 
+This mode will try to
 
 #+BEGIN_SRC emacs-lisp
   (use-package dtrt-indent
@@ -1340,8 +1383,6 @@ Emacs shell provides . Run eshell by typing =C-c e= or =M-x eshell=.
         (define-key map [delete]       'eshell-isearch-delete-char)
         map)
       "Keymap used in isearch in Eshell.")
-    (defalias 'eshell/q 'eshell/exit)
-    (defalias 'eshell/\? 'help)
     (defun eshell-spawn-external-command (beg end)
       "Parse and expand any history references in current input."
       (save-excursion
@@ -1355,8 +1396,8 @@ Emacs shell provides . Run eshell by typing =C-c e= or =M-x eshell=.
 ***** em-rebind
 #+BEGIN_SRC emacs-lisp
   (use-package em-rebind
+    :disabled
     :ensure nil
-    :demand
     :config
     ;; TODO: move this back to customize
     (setq eshell-rebind-keys-alist
@@ -1432,14 +1473,17 @@ supports many languages and give us a lot of features right out of the box.
 
 #+BEGIN_SRC emacs-lisp
   (use-package flycheck
+    :disabled
     :hook ((prog-mode . flycheck-mode)
            (haskell-mode . (lambda () (flycheck-mode -1)))
            (c++-mode . (lambda () (flycheck-mode -1)))))
   ;; (use-package flycheck-haskell
   ;;   :hook (haskell-mode . flycheck-haskell-setup))
   (use-package flycheck-cask
+    :disabled
     :hook (emacs-lisp-mode . flycheck-cask-setup))
   (use-package flycheck-rust
+    :disabled
     :hook (rust-mode . flycheck-rust-setup))
 #+END_SRC
 
@@ -1451,7 +1495,6 @@ Gnus is an infamous email client & news reader.
 
 #+BEGIN_SRC emacs-lisp
   (use-package gnus
-    :commands gnus
     :hook ((dired-mode . turn-on-gnus-dired-mode)))
 #+END_SRC
 
@@ -1519,28 +1562,7 @@ line are available in an intuitive Emacs buffer.
     (defun magit-dired-other-window ()
       (interactive)
       (dired-other-window (magit-toplevel)))
-
-    ;; (defun magit-remote-github (username &optional args)
-    ;;   (interactive (list (magit-read-string-ns "User name")
-    ;;                      (magit-remote-arguments)))
-    ;;   (let* ((url (magit-get "remote.origin.url"))
-    ;;          (match (string-match
-    ;;                  "^\\(?:https?://github\.com/\\|git@github.com:\\|ssh://git@github\.com/\\)[^/]*/\\(.*\\)"
-    ;;                  url)))
-    ;;     (unless match
-    ;;       (error "Not a github remote"))
-    ;;     (let ((repo (match-string 1 url)))
-    ;;       (apply 'magit-remote-add username
-    ;;              (format "ssh://git@github.com/%s/%s"
-    ;;                      username repo) args))))
-    ;; :hook (magit-mode . (lambda ()
-    ;;                       (magit-define-popup-action
-    ;;                         'magit-remote-popup
-    ;;                         ?g
-    ;;                         "Add remote from github user name"
-    ;;                         'magit-remote-github)))
-
-    :commands (magit-clone magit-blame-addition magit-log-buffer-file)
+    :commands (magit-clone)
     :if (locate-file "git" exec-path)
     :bind (("C-x g" . magit-status)
            ("C-x G" . magit-dispatch)
@@ -1554,13 +1576,6 @@ Magit forge.
 #+BEGIN_SRC emacs-lisp
   (use-package forge
     :after magit)
-#+END_SRC
-
-Magit todos
-
-#+BEGIN_SRC emacs-lisp
-(use-package magit-todos
-  :commands (magit-todos-list))
 #+END_SRC
 
 ***** git-commit
@@ -1578,7 +1593,6 @@ MMM mode lets you edit multiple languages within one buffer.
 
 #+BEGIN_SRC emacs-lisp
   (use-package mmm-mode
-    :commands mmm-mode
     :config
     (use-package mmm-auto
       :ensure nil))
@@ -1621,30 +1635,12 @@ outliner but also much much more.
            (org-mode . (lambda ()
              (autoload 'org-eldoc-documentation-function "org-eldoc")
              (setq-local eldoc-documentation-function
-                         'org-eldoc-documentation-function))))
-    :bind* (("C-c c" . org-capture)
-            ("C-c a" . org-agenda)
-            ("C-c l" . org-store-link)
-            ("C-c b" . org-iswitchb))
-    :config
-    (use-package ob-dot
-      :ensure nil
-      :demand)
-    (use-package ox-latex
-      :ensure nil
-      :demand)
-    (use-package ox-beamer
-      :ensure nil
-      :demand)
-    (use-package ox-md
-      :ensure nil
-      :demand))
+                         'org-eldoc-documentation-function)))))
   (use-package org-download
     :hook (dired-mode . org-download-enable))
-  (use-package org-present
-    :commands org-present)
+  (use-package org-present)
   (use-package org-journal
-    :commands org-journal-new-entry)
+    :disabled)
 #+END_SRC
 **** Projectile
 
@@ -1655,17 +1651,19 @@ easymenu to make the "Projectile" modeline clickable.
 
 #+BEGIN_SRC emacs-lisp
   (use-package projectile
-    :commands projectile-mode
-    :bind-keymap* (("C-c p" . projectile-command-map)
-                   ("s-p" . projectile-command-map))
-    :bind (("C-c C-f" . projectile-find-file))
+    :commands (projectile-mode)
+    ;; :bind-keymap* (("C-c p" . projectile-command-map)
+    ;;                ("s-p" . projectile-command-map))
+    ;; :bind (("C-c C-f" . projectile-find-file))
     :preface
     (autoload 'projectile-project-vcs "projectile")
     (autoload 'projectile-project-root "projectile")
     (autoload 'easy-menu-define "easymenu" "" nil 'macro)
     :demand
     :config
-    (projectile-mode))
+    (projectile-mode)
+    (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
+    (define-key mode-specific-map (kbd "p") 'projectile-command-map))
 #+END_SRC
 
 **** Recentf
@@ -1753,6 +1751,7 @@ Smartparens is helpful in closing parenthesis when editing Lisp code.
     :config
     (autoload 'sp-with-modes "smartparens" "" nil 'macro)
     (use-package smartparens-config
+      :disabled
       :ensure nil
       :demand)
 
@@ -1901,7 +1900,7 @@ instance spacemacs-theme can be enabled:
 
 #+BEGIN_SRC emacs-lisp
   (use-package try
-    :commands try)
+    :disabled)
 #+END_SRC
 
 **** which-key
@@ -1913,7 +1912,7 @@ function.
 #+BEGIN_SRC emacs-lisp
   (use-package which-key
     :demand
-    :commands which-key-mode
+    :commands (which-key-mode)
     :config (which-key-mode 1))
 #+END_SRC
 
@@ -1944,7 +1943,6 @@ investigate how to fix this.
 
 #+BEGIN_SRC emacs-lisp
   (use-package autorevert
-    :commands global-auto-revert-mode
     :demand
     :config (global-auto-revert-mode t))
 
@@ -2109,7 +2107,6 @@ Base mode used for shell and terminal modes.
 #+BEGIN_SRC emacs-lisp
   (use-package delsel
     :demand
-    :commands delete-selection-mode
     :config (delete-selection-mode t))
 #+END_SRC
 
@@ -2121,7 +2118,6 @@ You may want to enable this to persist info across Emacs sessions.
   (use-package desktop
     :disabled
     :demand
-    :commands delete-save-mode
     :config
       (setq desktop-dirname user-emacs-directory)
       (desktop-save-mode t))
@@ -2166,7 +2162,7 @@ You may want to enable this to persist info across Emacs sessions.
            ("W" . browse-url-of-dired-file)
            ("@" . dired-run-command)))
   (use-package dired-du
-    :commands dired-du-mode)
+    :disabled)
 #+END_SRC
 
 ***** dired-column
@@ -2206,7 +2202,7 @@ You may want to enable this to persist info across Emacs sessions.
 
 #+BEGIN_SRC emacs-lisp
   (use-package display-line-numbers
-    :commands (display-line-numbers-mode)
+    :if (>= emacs-major-version 26)
     :hook ((prog-mode . display-line-numbers-mode)
            (conf-mode . display-line-numbers-mode)))
 #+END_SRC
@@ -2295,18 +2291,18 @@ Make scripts executable automatically.
 
 #+BEGIN_SRC emacs-lisp
   (use-package ffap
-    :bind (("C-x C-f" . find-file-at-point)
-           ("C-x 4 C-f" . ffap-other-window)
-           ("C-x C-r" . ffap-read-only)
-           ("C-x C-v" . ffap-alternate-file)
-           ("C-x 4 f" . ffap-other-window)
-           ("C-x 5 f" . ffap-other-frame)
-           ("C-x 4 r" . ffap-read-only-other-window)
-           ("C-x 5 r" . ffap-read-only-other-frame)
-           ("C-x d"  . dired-at-point)
-           ("C-x 4 d" . ffap-dired-other-window)
-           ("C-x 5 d" . ffap-dired-other-frame)
-           ("C-x C-d" . ffap-list-directory))
+    :bind (([remap find-file] . find-file-at-point)
+           ([remap find-file-other-window] . ffap-other-window)
+           ([remap find-file-read-only] . ffap-read-only)
+           ([remap find-alternate-file] . ffap-alternate-file)
+           ([remap find-file-other-window] . ffap-other-window)
+           ([remap find-file-other-frame] . ffap-other-frame)
+           ([remap find-file-read-only-other-window] . ffap-read-only-other-window)
+           ([remap find-file-read-only-other-frame] . ffap-read-only-other-frame)
+           ([remap dired]  . dired-at-point)
+           ([remap dired-other-window] . ffap-dired-other-window)
+           ([remap dired-other-frame] . ffap-dired-other-frame)
+           ([remap list-directory] . ffap-list-directory))
     :hook ((gnus-summary-mode . ffap-gnus-hook)
            (gnus-article-mode . ffap-gnus-hook)
            (vm-mode . ffap-ro-mode-hook)
@@ -2317,35 +2313,36 @@ Make scripts executable automatically.
 #+BEGIN_SRC emacs-lisp
   (use-package files
     :ensure nil
-    :demand
-    :preface
-    (defun find-file--line-number (orig-fun filename
-                                   &optional wildcards)
-      "Turn files like file.js:14:10 into file.js and going to line 14, col 10."
-      (save-match-data
-        (let* ((matched (string-match
-                          "^\\(.*?\\):\\([0-9]+\\):?\\([0-9]*\\)$"
-                          filename))
-               (line-number (and matched
-                              (match-string 2 filename)
-                              (string-to-number
-                                (match-string 2 filename))))
-               (col-number (and matched
-                              (match-string 3 filename)
-                              (string-to-number (match-string 3 filename))))
-               (filename (if matched
-                             (match-string 1 filename)
-                             filename)))
-          (apply orig-fun (list filename wildcards))
-          (when line-number
-            ;; goto-line is for interactive use
-            (goto-char (point-min))
-            (forward-line (1- line-number))
-            (when (> col-number 0)
-              (forward-char (1- col-number)))))))
-    :config
-    (advice-add 'find-file
-                :around #'find-file--line-number))
+    ;; :demand
+    ;; :preface
+    ;; (defun find-file--line-number (orig-fun filename
+    ;;                                &optional wildcards)
+    ;;   "Turn files like file.js:14:10 into file.js and going to line 14, col 10."
+    ;;   (save-match-data
+    ;;     (let* ((matched (string-match
+    ;;                       "^\\(.*?\\):\\([0-9]+\\):?\\([0-9]*\\)$"
+    ;;                       filename))
+    ;;            (line-number (and matched
+    ;;                           (match-string 2 filename)
+    ;;                           (string-to-number
+    ;;                             (match-string 2 filename))))
+    ;;            (col-number (and matched
+    ;;                           (match-string 3 filename)
+    ;;                           (string-to-number (match-string 3 filename))))
+    ;;            (filename (if matched
+    ;;                          (match-string 1 filename)
+    ;;                          filename)))
+    ;;       (apply orig-fun (list filename wildcards))
+    ;;       (when line-number
+    ;;         ;; goto-line is for interactive use
+    ;;         (goto-char (point-min))
+    ;;         (forward-line (1- line-number))
+    ;;         (when (> col-number 0)
+    ;;           (forward-char (1- col-number)))))))
+    ;; :config
+    ;; (advice-add 'find-file
+    ;;             :around #'find-file--line-number)
+    )
 #+END_SRC
 
 **** flyspell
@@ -2379,11 +2376,12 @@ Make scripts executable automatically.
            (org-mode . hl-line-mode)
            (dired-mode . hl-line-mode)))
 #+END_SRC
-**** make-mode
+**** ibuffer
+
 #+BEGIN_SRC emacs-lisp
-  (use-package make-mode
-    :ensure nil
-    :mode (("\\(/\\|\\`\\)[Mm]akefile" . makefile-mode)))
+(use-package ibuffer
+  :commands (ibuffer-do-sort-by-alphabetic)
+  :bind ([remap list-buffers] . ibuffer))
 #+END_SRC
 
 **** paren
@@ -2398,7 +2396,6 @@ Make scripts executable automatically.
 
 #+BEGIN_SRC emacs-lisp
   (use-package pp
-    :commands pp-eval-last-sexp
     :bind (([remap eval-expression] . pp-eval-expression))
     ;; :init
     ;;(global-unset-key (kbd "C-x C-e"))
@@ -2472,16 +2469,26 @@ Make scripts executable automatically.
 **** Shell
 
 #+BEGIN_SRC emacs-lisp
-    (use-package shell
-      :bind (("C-c C-s" . shell)
-             ("H-s" . shell)
-             ("M-@" . shell))
-      :hook ((shell-mode . ansi-color-for-comint-mode-on)
-             (shell-mode . dirtrack-mode)
-             ;; (shell-mode . (lambda ()
-             ;;            (turn-on-comint-history (expand-file-name "sh-history"
-             ;;            user-emacs-directory))))
-             ))
+  (use-package shell
+    :bind (("C-c C-s" . shell)
+           ("H-s" . shell)
+           ("M-@" . shell))
+    :hook ((shell-mode . ansi-color-for-comint-mode-on)
+           (shell-mode . dirtrack-mode)
+           ;; (shell-mode . (lambda ()
+           ;;            (turn-on-comint-history (expand-file-name "sh-history"
+           ;;            user-emacs-directory))))
+           )
+    :config
+    (require 'tramp)
+    (defun shell-set-remote-shell-path-maybe (orig-fun &rest args)
+      (when (file-remote-p default-directory)
+        (if (file-exists-p (concat (file-remote-p default-directory) shell-file-name))
+            (set (make-local-variable 'explicit-shell-file-name) shell-file-name)
+          (if (file-exists-p (concat (file-remote-p default-directory) tramp-default-remote-shell))
+              (set (make-local-variable 'explicit-shell-file-name) tramp-default-remote-shell))))
+      (apply orig-fun args))
+    (advice-add 'shell :around 'shell-set-remote-shell-path-maybe))
 #+END_SRC
 
 **** simple
@@ -2489,9 +2496,11 @@ Make scripts executable automatically.
   (use-package simple
     :ensure nil
     :demand
-    :commands (column-number-mode auto-fill-mode)
     :bind
     (("C-`" . list-processes)
+     ([remap upcase-word] . upcase-dwim)
+     ([remap downcase-word] . downcase-dwim)
+     ([remap capitalize-word] . capitalize-dwim)
      :map minibuffer-local-map
      ("<escape>"         . abort-recursive-edit)
      ("M-TAB"    . previous-complete-history-element)
@@ -2507,11 +2516,21 @@ Make scripts executable automatically.
     :hook ((java-mode . subword-mode)))
 #+END_SRC
 
+**** so-long
+
+#+BEGIN_SRC emacs-lisp
+  (use-package so-long
+    :ensure nil
+    :if (>= emacs-major-version 27)
+    :demand
+    :config (global-so-long-mode 1))
+#+END_SRC
+
 **** term
 
 #+BEGIN_SRC emacs-lisp
   (use-package term
-    :commands (term-mode term-char-mode)
+    :commands (term-char-mode)
     :hook ((term-mode .
              (lambda ()
                (setq term-prompt-regexp
@@ -2523,7 +2542,7 @@ Make scripts executable automatically.
     (autoload 'tramp-dissect-file-name "tramp"))
 
   (use-package tramp-term
-    :commands tramp-term
+    :disabled
     :functions term-send-raw-string
     :hook (tramp-term-after-initialized . (lambda (host)
       (term-send-raw-string (concat "cd " default-directory (kbd "RET"))))))
@@ -2538,21 +2557,12 @@ Make scripts executable automatically.
     :hook ((text-mode . turn-on-auto-fill)))
 #+END_SRC
 
-**** time
-
-#+BEGIN_SRC emacs-lisp
-  (use-package time
-    :demand
-    :config (display-time-mode))
-#+END_SRC
-
 **** url-handlers
 
 #+BEGIN_SRC emacs-lisp
   (use-package url-handlers
     :ensure nil
     :demand
-    :commands url-handler-mode
     :config (url-handler-mode))
 #+END_SRC
 
@@ -2560,7 +2570,6 @@ Make scripts executable automatically.
 
 #+BEGIN_SRC emacs-lisp
   (use-package which-func
-    :commands which-function-mode
     :demand
     :config (which-function-mode))
 #+END_SRC
@@ -2577,16 +2586,6 @@ Each language will at least one of these major modes as well as associated
 packages (for completion, syntax checking, etc.)
 
 **** C/C++
-
-#+BEGIN_SRC emacs-lisp
-  (use-package cc-mode
-    :mode (("\\.h\\(h?\\|xx\\|pp\\)\\'" . c++-mode)
-           ("\\.m\\'" . c-mode)
-           ("\\.c\\'" . c-mode)
-           ("\\.cpp\\'" . c++-mode)
-           ("\\.c++\\'" . c++-mode)
-           ("\\.mm\\'" . c++-mode)))
-#+END_SRC
 
 ***** Irony
 
@@ -2614,6 +2613,7 @@ packages (for completion, syntax checking, etc.)
 
 #+BEGIN_SRC emacs-lisp
   (use-package flycheck-irony
+    :disabled
     :hook (flycheck-mode . flycheck-irony-setup))
 #+END_SRC
 
@@ -2621,36 +2621,26 @@ packages (for completion, syntax checking, etc.)
 
 #+BEGIN_SRC emacs-lisp
   (use-package irony-eldoc
+    :disabled
     :hook (irony-mode . irony-eldoc))
 #+END_SRC
 
 **** CMake
 
 #+BEGIN_SRC emacs-lisp
-  (use-package cmake-mode
-    :mode (("\\.cmake\\'" . cmake-mode)
-           ("\\CMakeLists.txt$" . cmake-mode)))
+  (use-package cmake-mode)
 #+END_SRC
 
 **** CoffeeScript
 
 #+BEGIN_SRC emacs-lisp
-  (use-package coffee-mode
-    :mode (("\\.coffee\\'" . coffee-mode)))
-#+END_SRC
-
-**** CSS
-
-#+BEGIN_SRC emacs-lisp
-  (use-package css-mode
-    :mode "\\.css\\'")
+  (use-package coffee-mode)
 #+END_SRC
 
 **** CSV
 
 #+BEGIN_SRC emacs-lisp
   (use-package csv-mode
-    :mode "\\.csv\\'"
     :hook ((csv-mode . (lambda () (visual-line-mode -1)))
            (csv-mode . (lambda () (auto-fill-mode -1)))
            (csv-mode . (lambda () (toggle-truncate-lines 1)))))
@@ -2707,60 +2697,45 @@ packages (for completion, syntax checking, etc.)
 
 ***** gitattributes
 #+BEGIN_SRC emacs-lisp
-  (use-package gitattributes-mode
-    :mode (("/\\.gitattributes\\'"  . gitattributes-mode)
-           ("/info/attributes\\'"   . gitattributes-mode)
-           ("/git/attributes\\'"    . gitattributes-mode)))
+  (use-package gitattributes-mode)
 #+END_SRC
 
 ***** gitconfig
 #+BEGIN_SRC emacs-lisp
-  (use-package gitconfig-mode
-    :mode (("/\\.gitconfig\\'"      . gitconfig-mode)
-           ("/\\.git/config\\'"     . gitconfig-mode)
-           ("/modules/.*/config\\'" . gitconfig-mode)
-           ("/git/config\\'"        . gitconfig-mode)
-           ("/\\.gitmodules\\'"     . gitconfig-mode)
-           ("/etc/gitconfig\\'"     . gitconfig-mode)))
+  (use-package gitconfig-mode)
 #+END_SRC
 
 ***** gitignore
 #+BEGIN_SRC emacs-lisp
   (use-package gitignore-mode
-    :mode (("/\\.gitignore\\'"      . gitignore-mode)
-           ("/info/exclude\\'"      . gitignore-mode)
-           ("/git/ignore\\'"        . gitignore-mode)))
+    :disabled)
 #+END_SRC
 
 **** Go
 
 #+BEGIN_SRC emacs-lisp
   (use-package go-mode
-    :mode "\\.go\\'")
+    :disabled)
 #+END_SRC
 
 **** HAML
 
 #+BEGIN_SRC emacs-lisp
   (use-package haml-mode
-    :mode "\\.haml\\'")
+    :disabled)
 #+END_SRC
 
 **** Haskell
 ***** haskell-mode
 
 #+BEGIN_SRC emacs-lisp
-  (use-package haskell
+  (use-package haskell-mode
     :preface
-    (load "haskell-mode-autoloads" t t)
-    :ensure haskell-mode
-    :mode (("\\.hs\\(c\\|-boot\\)?\\'" . haskell-mode)
-           ("\\.lhs\\'" . literate-haskell-mode)
-           ("\\.cabal\\'" . haskell-cabal-mode))
+    :mode (("\\.cabal\\'" . haskell-cabal-mode))
     :hook ((haskell-mode . subword-mode)
            (haskell-mode . flyspell-prog-mode)
            ;; (haskell-mode . haskell-indentation-mode)
-           (haskell-mode . haskell-auto-insert-module-template)
+           ;; (haskell-mode . haskell-auto-insert-module-template)
            ;; (haskell-mode . haskell-decl-scan-mode)
            (haskell-mode . haskell-indent-mode)
            ;; (haskell-mode . imenu-add-menubar-index)
@@ -2789,21 +2764,7 @@ packages (for completion, syntax checking, etc.)
            ("C-`" . haskell-interactive-bring)
            ("C-c C-k" . haskell-interactive-mode-clear)
            ("C-c C-c" . haskell-process-cabal-build)
-           ("C-c c" . haskell-process-cabal)
-           :map interactive-haskell-mode-map
-           ("M-." . (lambda (&optional _next-p)
-                      (interactive "P")
-                      (if (haskell-session-maybe)
-                          (let ((initial-loc (point-marker))
-                                (loc (haskell-mode-find-def (haskell-ident-at-point))))
-                            (if loc
-                                (progn
-                                  (haskell-mode-handle-generic-loc loc)
-                                  (unless (equal initial-loc (point-marker))
-                                    (xref-push-marker-stack initial-loc)))
-                              (call-interactively 'haskell-mode-tag-find)))
-                        (call-interactively 'haskell-mode-tag-find))))
-           ("C-c C-t" . haskell-mode-show-type-at))
+           ("C-c c" . haskell-process-cabal))
     :init
     (add-to-list 'completion-ignored-extensions ".hi"))
 #+END_SRC
@@ -2812,7 +2773,7 @@ packages (for completion, syntax checking, etc.)
 #+BEGIN_SRC emacs-lisp
   (use-package haskell-interactive-mode
     :ensure nil
-    :commands interactive-haskell-mode
+    :commands (interactive-haskell-mode)
     ;; :hook (haskell-mode . interactive-haskell-mode)
     )
 #+END_SRC
@@ -2854,6 +2815,7 @@ packages (for completion, syntax checking, etc.)
 
 #+BEGIN_SRC emacs-lisp
   (use-package indium
+    :disabled
     :if (>= emacs-major-version 25)
     :mode ("\\.js\\'" . indium-mode))
 #+END_SRC
@@ -2884,10 +2846,8 @@ packages (for completion, syntax checking, etc.)
 
 #+BEGIN_SRC emacs-lisp
   (use-package json-mode
-    :mode (("\\.bowerrc$"     . json-mode)
-           ("\\.jshintrc$"    . json-mode)
-           ("\\.json_schema$" . json-mode)
-           ("\\.json\\'" . json-mode))
+    :mode (("\\.jshintrc$"    . json-mode)
+           ("\\.json_schema$" . json-mode))
     :bind (:package json-mode-map
            :map json-mode-map
            ("C-c <tab>" . json-mode-beautify))
@@ -2952,24 +2912,20 @@ macho-mode to toggle then M-x hexl-mode.
 
 #+BEGIN_SRC emacs-lisp
   (use-package markdown-mode
-    :mode (("README\\.md\\'" . gfm-mode)
-           ("\\.md\\'"       . markdown-mode)
-           ("\\.markdown\\'" . gfm-mode)))
+    :mode (("README\\.md\\'" . gfm-mode)))
 #+END_SRC
 
 **** Nix
 
 ***** nix-mode
 #+BEGIN_SRC emacs-lisp
-  (use-package nix-mode
-    :mode "\\.nix\\'")
+  (use-package nix-mode)
 #+END_SRC
 
 ***** nix-shell
 #+BEGIN_SRC emacs-lisp
   (use-package nix-shell
-    :ensure nil
-    :commands (nix-shell nix-unpack))
+    :ensure nil)
 #+END_SRC
 ***** nix-drv-mode
 #+BEGIN_SRC emacs-lisp
@@ -2981,7 +2937,6 @@ macho-mode to toggle then M-x hexl-mode.
 
 #+BEGIN_SRC emacs-lisp
   (use-package nix-buffer
-    :commands nix-buffer
     ;; :preface
     ;; (defun turn-on-nix-buffer ()
     ;;   (when (and (not noninteractive)
@@ -2994,14 +2949,13 @@ macho-mode to toggle then M-x hexl-mode.
 ***** nix-update
 #+BEGIN_SRC emacs-lisp
 (use-package nix-update
-  :commands nix-update-fetch
   :bind (("C-. u" . nix-update-fetch)))
 #+END_SRC
 **** OCaml
 
 #+BEGIN_SRC emacs-lisp
   (use-package tuareg
-    :mode (("\\.mli?\\'" . tuareg-mode))
+    :disabled
     :config
     ;; Use Merlin if available
     (when (require 'merlin nil t)
@@ -3025,7 +2979,7 @@ macho-mode to toggle then M-x hexl-mode.
 
 #+BEGIN_SRC emacs-lisp
   (use-package php-mode
-    :mode "\\.php\\'")
+    :disabled)
 #+END_SRC
 
 **** Proof General
@@ -3035,6 +2989,7 @@ macho-mode to toggle then M-x hexl-mode.
 #+BEGIN_SRC emacs-lisp
   (use-package proof-site
     :ensure proofgeneral
+    :disabled
     :demand
     :if (not needs-package-init))
 #+END_SRC
@@ -3075,30 +3030,26 @@ macho-mode to toggle then M-x hexl-mode.
 **** Ruby
 
 #+BEGIN_SRC emacs-lisp
-  (use-package ruby-mode
-    :mode ("\\.rb\\'" . ruby-mode)
-    :interpreter ("ruby" . ruby-mode))
+  (use-package ruby-mode)
 #+END_SRC
 
 **** Rust
 
 #+BEGIN_SRC emacs-lisp
-  (use-package rust-mode
-    :mode "\\.rs\\'")
+  (use-package rust-mode)
 #+END_SRC
 
 **** SASS
 
 #+BEGIN_SRC emacs-lisp
   (use-package sass-mode
-    :mode "\\.sass\\'")
+    :disabled)
 #+END_SRC
 
 **** Scala
 
 #+BEGIN_SRC emacs-lisp
   (use-package scala-mode
-    :mode "\\.scala\\'"
     :interpreter ("scala" . scala-mode))
 #+END_SRC
 
@@ -3106,14 +3057,13 @@ macho-mode to toggle then M-x hexl-mode.
 
 #+BEGIN_SRC emacs-lisp
   (use-package scss-mode
-    :mode "\\.scss\\'")
+    :disabled)
 #+END_SRC
 
 **** Shell
 
 #+BEGIN_SRC emacs-lisp
 (use-package sh-script
-  :commands shell-command
   :mode (("\\.*shellrc$" . sh-mode)
          ("\\.*shell_profile" . sh-mode)
          ("\\.zsh\\'" . sh-mode)))
@@ -3129,15 +3079,14 @@ macho-mode to toggle then M-x hexl-mode.
 **** texinfo
 
 #+BEGIN_SRC emacs-lisp
-  (use-package texinfo
-    :mode ("\\.texi\\'" . texinfo-mode))
+  (use-package texinfo)
 #+END_SRC
 
 **** TypeScript
 
 #+BEGIN_SRC emacs-lisp
   (use-package typescript-mode
-    :mode "\\.ts\\'")
+    :disabled)
 #+END_SRC
 
 **** Web
@@ -3162,8 +3111,7 @@ macho-mode to toggle then M-x hexl-mode.
 **** YAML
 
 #+BEGIN_SRC emacs-lisp
-  (use-package yaml-mode
-    :mode "\\.ya?ml\\'")
+  (use-package yaml-mode)
 #+END_SRC
 
 *** Custom
@@ -3179,7 +3127,6 @@ repositories.
 
 #+BEGIN_SRC emacs-lisp
   (use-package nethack
-    :commands nethack
     :ensure nil)
 #+END_SRC
 
@@ -3200,8 +3147,7 @@ Most of these are available in MELPA.
 #+END_SRC
 **** browse-kill-ring
 #+BEGIN_SRC emacs-lisp
-  (use-package browse-kill-ring
-    :commands browse-kill-ring)
+  (use-package browse-kill-ring)
 #+END_SRC
 
 **** buffer-move
@@ -3228,6 +3174,7 @@ Most of these are available in MELPA.
 
 #+BEGIN_SRC emacs-lisp
   (use-package crux
+    :disabled
     :bind (("C-c D" . crux-delete-file-and-buffer)
            ("C-c C-e" . crux-eval-and-replace)
            ("C-c d" . crux-duplicate-current-line-or-region)
@@ -3243,10 +3190,7 @@ https://github.com/cbowdon/daemons.el
 #+END_SRC
 **** deadgrep
 #+BEGIN_SRC emacs-lisp
-  ;; (use-package ripgrep :commands ripgrep-regexp)
-  ;; (use-package rg :commands rg-dwim)
   (use-package deadgrep
-    :commands deadgrep
     :bind (:map projectile-command-map
            ("s g" . deadgrep)))
 #+END_SRC
@@ -3265,24 +3209,24 @@ https://github.com/cbowdon/daemons.el
 **** emacs-gif-screencast
 #+BEGIN_SRC emacs-lisp
 (use-package gif-screencast
-  :commands gif-screencast)
+  :bind ("<f9>". gif-screencast-start-or-stop))
 #+END_SRC
 **** fic-mode
 #+BEGIN_SRC emacs-lisp
 (use-package fic-mode
+  :disabled
   :hook (prog-mode . fic-mode))
 #+END_SRC
 **** git-attr
 #+BEGIN_SRC emacs-lisp
 (use-package git-attr-linguist
   :ensure git-attr
-  :commands git-attr-linguist
   :hook (find-file . git-attr-linguist))
 #+END_SRC
 **** git-timemachine
 #+BEGIN_SRC emacs-lisp
 (use-package git-timemachine
-  :commands git-timemachine)
+  :disabled)
 #+END_SRC
 **** gitlab
 #+BEGIN_SRC emacs-lisp
@@ -3300,16 +3244,33 @@ https://github.com/cbowdon/daemons.el
 (use-package idle-highlight-mode
   :hook (prog-mode . idle-highlight-mode))
 #+END_SRC
+**** ibuffer-vc
+
+#+BEGIN_SRC emacs-lisp
+  (use-package ibuffer-vc
+    :commands (ibuffer-vc-set-filter-groups-by-vc-root)
+    :hook ((ibuffer . (lambda ()
+                        (ibuffer-vc-set-filter-groups-by-vc-root)
+                        (unless (eq ibuffer-sorting-mode 'alphabetic)
+                          (ibuffer-do-sort-by-alphabetic))))))
+#+END_SRC
 **** iedit
 
 #+BEGIN_SRC emacs-lisp
 (use-package iedit
+  :disabled
   :bind (("C-;" . iedit-mode)))
+#+END_SRC
+**** keycast
+
+#+BEGIN_SRC emacs-lisp
+(use-package keycast)
 #+END_SRC
 **** ledger-mode
 
 #+BEGIN_SRC emacs-lisp
-  (use-package ledger-mode)
+  (use-package ledger-mode
+    :disabled)
 #+END_SRC
 **** linum-relative
 #+BEGIN_SRC emacs-lisp
@@ -3335,7 +3296,8 @@ https://github.com/cbowdon/daemons.el
 
 **** org-static-blog
 #+BEGIN_SRC emacs-lisp
-  (use-package org-static-blog :commands org-static-blog-publish)
+  (use-package org-static-blog
+    :disabled)
 #+END_SRC
 **** page-break-lines
 
@@ -3360,36 +3322,6 @@ https://github.com/cbowdon/daemons.el
            (pandoc-mode . pandoc-load-default-settings)))
 #+END_SRC
 
-**** pcomplette
-#+BEGIN_SRC emacs-lisp
-  (use-package pcomplete
-    :demand
-    :commands pcomplete-here
-    :preface
-    (autoload 'pcomplete-comint-setup "pcomplete")
-    :hook ((shell-mode . (lambda () (pcomplete-comint-setup 'shell-dynamic-complete-functions)))
-           ;; (term-mode . (lambda () (pcomplete-comint-setup 'term-dynamic-complete-functions)))
-           (comint-mode . (lambda () (pcomplete-comint-setup 'comint-dynamic-complete-functions)))
-           ;; (eshell-mode . (lambda () (add-hook 'completion-at-point-functions
-           ;;                                'pcomplete-completions-at-point
-           ;;                                nil t)))
-           ))
-  (use-package pcmpl-args
-    :init
-    (declare-function pcmpl-args-process-file "pcmpl-args.el")
-    ;; see https://github.com/JonWaltman/pcmpl-args.el/pull/4
-    (setq pcmpl-args-man-function
-          (lambda (name)
-            (let ((process-environment process-environment))
-              ;; Setting MANWIDTH to a high number makes most paragraphs fit on a single
-              ;; line, reducing the number of false positives that result from lines
-              ;; starting with `-' that aren't really options.
-              (push "MANWIDTH=10000" process-environment)
-              (pcmpl-args-process-file
-               shell-file-name shell-command-switch (format "man %s | col -b" name))))))
-
-    ;; (use-package pcmpl-git)
-#+END_SRC
 **** rainbow-delimiters
 
 #+BEGIN_SRC emacs-lisp
@@ -3401,6 +3333,12 @@ https://github.com/cbowdon/daemons.el
             inferior-lisp-mode
             lisp-interaction-mode
             slime-repl-mode) . rainbow-delimiters-mode))
+#+END_SRC
+
+**** bats-mode
+
+#+BEGIN_SRC emacs-lisp
+  (use-package bats-mode)
 #+END_SRC
 
 **** rainbow-mode
@@ -3439,16 +3377,16 @@ https://github.com/cbowdon/daemons.el
            ("C-c r J" . string-inflection-java-style-cycle)))
 #+END_SRC
 
+**** systemd
+#+BEGIN_SRC emacs-lisp
+(use-package systemd)
+#+END_SRC
 **** undo-tree
 #+BEGIN_SRC emacs-lisp
   (use-package undo-tree
-    :demand
-    :commands global-undo-tree-mode
-    :config (global-undo-tree-mode 1)
-    ;; (global-set-key (kbd "C-z") 'undo)
-    ;; (defalias 'redo 'undo-tree-redo)
-    ;; (global-set-key (kbd "C-S-z") 'redo)
-    )
+    :hook ((prog-mode . undo-tree-mode)
+           (org-mode . undo-tree-mode)
+           (text-mode . undo-tree-mode)))
 #+END_SRC
 **** unfill
 #+BEGIN_SRC emacs-lisp
@@ -3483,7 +3421,7 @@ https://github.com/cbowdon/daemons.el
 
 #+BEGIN_SRC emacs-lisp
 (use-package winner
-  :demand
+  :disabled
   :config (winner-mode))
 #+END_SRC
 
@@ -3542,7 +3480,7 @@ To use this, you must create a short ~/.profile file. Here is an example,
 
 #+BEGIN_SRC shell :tangle no :padline no
 bootstrap="$HOME/.nix-profile/etc/profile"
-[ -f $bootstrap ] && source $bootstrap
+[ -f $bootstrap ] && . $bootstrap
 #+END_SRC
 
 Set some Nix variables that never seem to get set correctly. There are a few bug
@@ -3558,13 +3496,14 @@ MANPATH empty so it resolves using the PATH-based method. Fallbacks are provided
 just in case.
 
 #+BEGIN_SRC shell
-  if [ -z "${__BAUER_ADD_PATHS-}" ]; then
-    export __BAUER_ADD_PATHS=1 \
-           PATH="$HOME/bin":"$HOME/.nix-profile/bin":$PREFIX/bin:@PATH@${PATH:+:$PATH} \
-           INFOPATH="$HOME/.nix-profile/share/info":@INFOPATH@${INFOPATH:+:$INFOPATH} \
-           MANPATH=:"$HOME/.nix-profile/share/man":@MANPATH@${MANPATH:+:$MANPATH} \
-           XDG_DATA_DIRS="$HOME/.nix-profile/share":@XDG_DATA_DIRS@${XDG_DATA_DIRS:+:$XDG_DATA_DIRS} \
-           TERMINFO_DIRS=@TERMINFO_DIRS@${TERMINFO_DIRS:+:$TERMINFO_DIRS}
+  export PATH="$HOME/bin":"$HOME/.nix-profile/bin":$PREFIX/bin:@PATH@${PATH:+:$PATH} \
+         INFOPATH="$HOME/.nix-profile/share/info":@INFOPATH@${INFOPATH:+:$INFOPATH} \
+         MANPATH=:"$HOME/.nix-profile/share/man":@MANPATH@${MANPATH:+:$MANPATH} \
+         XDG_DATA_DIRS="$HOME/.nix-profile/share":@XDG_DATA_DIRS@${XDG_DATA_DIRS:+:$XDG_DATA_DIRS} \
+         TERMINFO_DIRS=@TERMINFO_DIRS@${TERMINFO_DIRS:+:$TERMINFO_DIRS}
+
+  if [ -z "${SSH_CONNECTION-}" ] && [ -z "${SSH_AUTH_SOCK-}" ] && command -v ssh-agent > /dev/null; then
+    eval $(ssh-agent) > /dev/null
   fi
 
   HISTSIZE=50000
@@ -3596,6 +3535,10 @@ just in case.
   PROMPT_DIRTRIM=4
 
   if [ -n "${BASH_VERSION-}" ]; then
+    if [[ $- == *i* ]]; then
+      stty -ixon
+    fi
+
     shopt -s cdable_vars \
              cdspell \
              checkwinsize \
@@ -3612,16 +3555,28 @@ just in case.
              globstar \
     2>/dev/null || true
 
-    if [ -n "${PS1-}" ] && [ "${TERM-}" != dumb ]; then
-      source @bash_completion@/share/bash-completion/bash_completion
+    if [ -n "${PS1-}" ] && [ "${TERM-}" != dumb ] && shopt -q progcomp 2>/dev/null && [ "${BASH_VERSINFO-0}" -gt 3 ]; then
+      . @bash_completion@/share/bash-completion/bash_completion
     fi
-  fi
 
-  if [ "${TERM-}" = dumb-emacs-ansi ] && [ -n "${SSH_CONNECTION-}" ]; then
-    PROMPT_DIRTRIM=0
-    PS1='\[\e[34m\]:/ssh:\u@\H:$PWD\[\e[33m\] $\[\e[0m\] '
-  else
-    PS1='\[\e[34m\]\u@\H:\[\e[36m\]\w \[\e[33m\]\$\[\e[0m\] '
+    if { [ "${TERM-}" = dumb-emacs-ansi ] || [ -n "${INSIDE_EMACS-}" ]; } && [ -n "${SSH_CONNECTION-}" ]; then
+      PROMPT_DIRTRIM=0
+      PS1='\[\e[34m\]/ssh:\u@\H:$PWD\[\e[0m\] \[\e[33m\]$\[\e[0m\] '
+    elif [ -n "${SSH_CONNECTION-}" ]; then
+      PROMPT_DIRTRIM=0
+      PS1='\[\e[34m\]ssh://\u@\H\[\e[36m\]$PWD\[\e[0m\] \[\e[33m\]$\[\e[0m\] '
+    else
+      PS1='\[\e[34m\]\u@\h\[\e[0m\]:\[\e[36m\]\w \[\e[33m\]\$\[\e[0m\] '
+    fi
+
+    if { [ "${TERM_PROGRAM-}" = iTerm.app ] || [ -n "${SSH_CONNECTION-}" ]; } && [ "$TERM" != dumb-emacs-ansi ] && [ "$TERM" != eterm-color ] && [ "$TERM" != dumb ]; then
+      PS1='\[\e]133;D;\$?\a\e]133;A\a\]'"$PS1"'\[\e]133;B\a\]'
+    fi
+
+    alias ...='../..' \
+          ....='../../..' \
+          .....='../../../..' \
+          ......='../../../../..'
   fi
 #+END_SRC
 
@@ -3640,75 +3595,64 @@ Dircolors
 Then setup aliases.
 
 #+BEGIN_SRC shell
-alias rm='rm -I --preserve-root' \
-      mv='mv -i' \
-      cp='cp -i' \
-      ln='ln -i' \
-      chown='chown --preserve-root' \
-      chmod='chmod --preserve-root' \
-      chgrp='chgrp --preserve-root' \
-      curl='curl -L --proto-default https' \
-      upgrade_bauer='git -C "$HOME/.local/share/bauer" pull && nix-env -if "$HOME/.local/share/bauer"' \
-      upgrade=upgrade_bauer \
-      df='df -hT' \
-      du='du -h' \
-      free='free -m' \
-      gdb='gdb --quiet --args' \
-      q=exit
+  alias rm='rm -Iv' \
+        mv='mv -iv' \
+        cp='cp -iv' \
+        ln='ln -iv' \
+        rmdir='rmdir -v' \
+        mkdir='mkdir -v' \
+        chown='chown --preserve-root -c' \
+        chmod='chmod --preserve-root -c' \
+        chgrp='chgrp --preserve-root -c' \
+        curl='curl -L --proto-default https' \
+        upgrade_bauer='git -C "$HOME/.local/share/bauer" pull && nix-env -if "$HOME/.local/share/bauer"' \
+        upgrade=upgrade_bauer \
+        df='df -HT' \
+        du='du -ch' \
+        gdb='gdb --quiet --args'
 
-open() {
-  if command -v open > /dev/null; then
-    command open "$@"
-  elif command -v xdg-open > /dev/null; then
-    xdg-open "$@"
-  else
-    echo Can’t find open.
-    exit 1
-  fi
-}
-
-help() {
-  if command -v xdg-open > /dev/null; then
-    xdg-open https://matthewbauer.us/bauer/
-  elif command -v open > /dev/null; then
-    open https://matthewbauer.us/bauer/
-  elif [ -n "${EDITOR-}" ]; then
-    $EDITOR "$HOME/.local/share/bauer/README.org"
-  else
-    echo Can’t find help.
-    exit 1
-  fi
-}
-
-set -o noclobber -o notify
-
-if [ "$TERM" != "dumb" ]; then
-    if [ "$TERM" != eterm-color ] && [ "${TERM_PROGRAM-}" != iTerm.app ]; then
-        alias l='ls -lh --hyperlink=auto --color=auto' \
-              ls='ls -h --hyperlink=auto --color=auto'
+  open() {
+    if command -v open > /dev/null; then
+      command open "$@"
+    elif command -v xdg-open > /dev/null; then
+      xdg-open "$@"
     else
-        alias l='ls -lh --color=auto' \
-              ls='ls -h --color=auto'
+      echo Can’t find open.
+      exit 1
     fi
-    export CLICOLOR=1
-    alias grep='grep --color=auto' \
-          egrep='grep -E --color=auto' \
-          diff='diff --color=auto' \
-          rsync='rsync --progress --human-readable' \
-          dd='dd status=progress'
-else
-    alias l='ls -lFh' \
-          ls='ls -F' \
-          egrep='grep -E'
-fi
+  }
+
+  set -o noclobber -o notify
+
+  if [ "$TERM" != "dumb" ]; then
+      if [ "$TERM" != eterm-color ] && [ "${TERM_PROGRAM-}" != iTerm.app ]; then
+          alias l='ls -lh --hyperlink=auto --color=auto' \
+                ls='ls -Fh --hyperlink=auto --color=auto'
+      else
+          alias l='ls -lh --color=auto' \
+                ls='ls -Fh --color=auto'
+      fi
+      export CLICOLOR=1
+      alias grep='grep --color=auto' \
+            egrep='grep -E --color=auto' \
+            diff='diff --color=auto' \
+            rsync='rsync -v --progress --human-readable' \
+            dd='dd status=progress'
+  else
+      alias l='ls -lh' \
+            ls='ls -Fh' \
+            egrep='grep -E'
+  fi
 #+END_SRC
 
 Configure INSIDE_EMACS.
 
 #+BEGIN_SRC shell
 if [ "${TERM-}" = dumb ] && [ -n "${INSIDE_EMACS-}" ]; then
-    export TERM=dumb-emacs-ansi \
-           COLORTERM=1
+    export TERM=dumb-emacs-ansi
+    if [ -z "${COLORTERM-}" ]; then
+      export COLORTERM=1
+    fi
 fi
 #+END_SRC
 
@@ -3718,7 +3662,7 @@ Last, we source the HOME profile to make sure it is used by zsh.
 if [ -f "$HOME/.profile" ] && [ -z "${__BAUER_SOURCED_PROFILE-}" ]; then
   __BAUER_SOURCED_PROFILE=1
   # shellcheck source=/dev/null
-  source "$HOME/.profile"
+  . "$HOME/.profile"
 fi
 #+END_SRC
 
@@ -3734,7 +3678,7 @@ Setup ZSH profile. First, we just source the global profile.
 
 #+BEGIN_SRC shell
 # shellcheck source=/dev/null
-source @out@/etc/profile
+. @out@/etc/profile
 #+END_SRC
 
 Handle dumb options.
@@ -3755,6 +3699,9 @@ case "$TERM" in
     eterm*)
         setopt nopromptsp \
                single_line_zle
+        ;;
+    dumb-emacs-ansi)
+        setopt no_beep
         ;;
 esac
 #+END_SRC
@@ -3778,6 +3725,8 @@ setopt always_to_end \
        interactive_comments \
        long_list_jobs \
        multios \
+       no_list_beep \
+       no_flow_control \
        prompt_subst \
        pushd_minus \
        transient_rprompt
@@ -3792,14 +3741,14 @@ Load up site-functions in ZSH. Use XDG_DATA_DIRS variable. Then we use this to
 initialize completions.
 
 #+BEGIN_SRC shell
-if [ "$TERM" != dumb-emacs-ansi ]; then
+if [ "$TERM" != dumb-emacs-ansi ] && [[ -o interactive ]]; then
   # shellcheck disable=SC2154
-  for dir in @completions@/share ${(s.:.)XDG_DATA_DIRS-}; do
+  for dir in "@completions@/share" ${(s.:.)XDG_DATA_DIRS-}; do
     if [ -d "$dir/zsh/site-functions" ]; then
-      fpath+=$dir/zsh/site-functions
+      fpath+="$dir/zsh/site-functions"
     fi
     if [ -d "$dir/zsh/vendor-completions" ]; then
-      fpath+=$dir/zsh/vendor-completions
+      fpath+="$dir/zsh/vendor-completions"
     fi
   done
 
@@ -3816,43 +3765,52 @@ fi
 Bind to emacs...
 
 #+BEGIN_SRC shell
-bindkey -e
+  bindkey -e
 
-autoload -U tetris
-zle -N tetris
+  autoload -U tetris
+  zle -N tetris
 
-autoload -U tetriscurses
-zle -N tetriscurses
+  autoload -U tetriscurses
+  zle -N tetriscurses
 
-autoload -U bracketed-paste-magic
-zle -N bracketed-paste bracketed-paste-magic
+  autoload -U bracketed-paste-magic
+  zle -N bracketed-paste bracketed-paste-magic
 
-bindkey ' ' magic-space
-bindkey ';5D' emacs-backward-word
-bindkey ';5C' emacs-forward-word
+  bindkey ' ' magic-space
 
-autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
-zle -N up-line-or-beginning-search
-zle -N down-line-or-beginning-search
+  bindkey ';5D' backward-word
+  bindkey ';5C' forward-word
+  bindkey '^[[1;9D' backward-word
+  bindkey '^[[1;9C' forward-word
 
-autoload -U zmv
+  autoload -U zmv
+  autoload -U zargs
 
-autoload -U url-quote-magic
-zle -N self-insert url-quote-magic
+  autoload -U url-quote-magic
+  zle -N self-insert url-quote-magic
 
-bindkey '^[[A'  up-line-or-beginning-search
-bindkey '^[OA'  up-line-or-beginning-search
-bindkey '^[[B'  down-line-or-beginning-search
-bindkey '^[OB'  down-line-or-beginning-search
+  autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+  zle -N up-line-or-beginning-search
+  zle -N down-line-or-beginning-search
 
-autoload -U edit-command-line
-zle -N edit-command-line
-bindkey "^X^E" edit-command-line
+  bindkey '^[[A'  up-line-or-beginning-search
+  bindkey '^[OA'  up-line-or-beginning-search
+  bindkey '^[[B'  down-line-or-beginning-search
+  bindkey '^[OB'  down-line-or-beginning-search
 
-bindkey "^[m" copy-prev-shell-word
-bindkey '^[w' kill-region
-bindkey '^[[Z' reverse-menu-complete
-bindkey "^[^R" history-incremental-search-forward
+  autoload -U edit-command-line
+  zle -N edit-command-line
+  bindkey "^X^E" edit-command-line
+
+  bindkey "^[m" copy-prev-shell-word
+  bindkey '^[w' kill-region
+  bindkey '^[[Z' reverse-menu-complete
+  bindkey "^S" history-incremental-search-forward
+
+  # unalias run-help
+  autoload -U run-help
+  alias help=run-help
+  bindkey "^[h" run-help
 #+END_SRC
 
 Zstyle completions.
@@ -3877,7 +3835,6 @@ zstyle ':completion:*:history-words' stop yes
 zstyle ':completion:*:rm:*' file-patterns '*:all-files'
 zstyle ':completion::complete:*' cache-path "$HOME/.zcompcache"
 zstyle ':completion::complete:*' use-cache yes
-zstyle ':vcs_info:*' enable git
 zstyle '*' single-ignored show
 zstyle -e ':completion:*:(ssh|scp|sftp|rsh|rsync):hosts' hosts 'reply=(${=${${(f)"$(cat {/etc/ssh_,~/.ssh/known_}hosts(|2)(N) /dev/null)"}%%[# ]*}//,/ })'
 #+END_SRC
@@ -3885,18 +3842,17 @@ zstyle -e ':completion:*:(ssh|scp|sftp|rsh|rsync):hosts' hosts 'reply=(${=${${(f
 Turn on prompt with colors.
 
 #+BEGIN_SRC shell
-  PROMPT='%F{blue}'
+  PROMPT=
   if [ -n "${SSH_CONNECTION-}" ]; then
+      PROMPT+='%F{blue}'
       if [ "$TERM" = dumb-emacs-ansi ]; then
-        PROMPT+=':/ssh:'
+        PROMPT+='/ssh:'
       else
         PROMPT+='ssh://'
       fi
       PROMPT+='%n@'
 
       echo "$SSH_CONNECTION" | read client_ip client_port server_ip server_port
-
-      hostname=
 
       if [[ "$server_ip" =~ fe80::* ]]; then
           server_ip="$(echo "$server_ip" | sed 's,%[a-z0-9]*$,,')"
@@ -3908,27 +3864,9 @@ Turn on prompt with colors.
 
       # localhost
       if [ "$server_ip" = 127.0.0.1 ] || [ "$server_ip" = ::1 ] || [ "$server_ip" = "$client_ip" ]; then
-          hostname=localhost
-
-      # private network
-      elif { [[ "$server_ip" =~ 192.168.* ]] && [[ "$client_ip" =~ 192.168.* ]] } || { [[ "$server_ip" =~ 10.* ]] && [[ "$client_ip" =~ 10.* ]] } || { [[ "$server_ip" =~ fe80::* ]] && [[ "$client_ip" =~ fe80::* ]] }; then
-          if command -v avahi-resolve-address > /dev/null; then
-              hostname="$(avahi-resolve-address "$server_ip" | awk '{ print $2 }')"
-          fi
-
-          if [ -z "$hostname" ] && command -v dig > /dev/null; then
-              hostname="$(dig +noall +answer -x "$server_ip" | awk '{ print $5 }' | sed 's,\.$,,')"
-          fi
-      fi
-
-      if [ -z "$hostname" ] && command -v getent > /dev/null; then
-          hostname="$(getent hosts "$server_ip" | awk '{ print $2 }')"
-      fi
-
-      if [ "$TERM" = dumb-emacs-ansi ]; then
-          PROMPT+="$HOST"
-      elif [ -n "$hostname" ]; then
-          PROMPT+="$hostname"
+          PROMPT+=localhost
+      elif [ "$TERM" = dumb-emacs-ansi ]; then
+          PROMPT+="${HOST-}"
       else
           PROMPT+=%M
       fi
@@ -3945,16 +3883,15 @@ Turn on prompt with colors.
       unset client_ip client_port server_ip server_port hostname
 
       if [ "$TERM" = dumb-emacs-ansi ]; then
-        PROMPT+=':%/'
+        PROMPT+=':%/%f'
       else
-        PROMPT+='%F{cyan}%/'
+        PROMPT+='%F{cyan}%/%f'
       fi
   else
-      PROMPT+='%n@%M:%F{cyan}%4~'
+      PROMPT+='%(!.%F{red}%B.%F{blue})%n%b%F{blue}@%m%f:%F{cyan}%4~%f'
   fi
-  PROMPT+='%F{yellow} $ '
-  PROMPT+='%F{reset}'
-  export PROMPT
+
+  PROMPT+=' %(?..%F{red}[%?]%f )%(1j.%F{green}[%j]%f .)%F{yellow}%(!.#.$)%f '
 
   unset RPS1
 
@@ -3967,8 +3904,8 @@ Update eterm cwds.
 #+BEGIN_SRC shell
   update_eterm_cwd () {
       printf '\eAnSiTc %s\n' "$PWD"
-      printf '\eAnSiTh %s\n' "$HOST"
-      printf '\eAnSiTu %s\n' "$USER"
+      printf '\eAnSiTh %s\n' "${HOST-}"
+      printf '\eAnSiTu %s\n' "${USER-$LOGNAME}"
   }
 
   if [ "$TERM" = "eterm-color" ]; then
@@ -3989,6 +3926,29 @@ if [ "${TERM_PROGRAM-}" = Apple_Terminal ] \
    && [ -n "${TERM_SESSION_ID-}" ]; then
     chpwd_functions+=(update_apple_terminal_cwd)
     update_apple_terminal_cwd
+fi
+#+END_SRC
+
+iTerm2
+
+#+BEGIN_SRC shell
+if { [ "${TERM_PROGRAM-}" = iTerm.app ] || [ -n "${SSH_CONNECTION-}" ]; } && [ "$TERM" != dumb-emacs-ansi ] && [ "$TERM" != eterm-color ] && [ "$TERM" != dumb ] && [[ -o interactive ]]; then
+  iterm2_before_cmd_executes() {
+    printf '\e]133;C;\a'
+  }
+  iterm2_print_state_data() {
+    printf '\e]1337;RemoteHost=%s@%s\a' "${USER-$LOGNAME}" "${HOST-}"
+    printf '\e]1337;CurrentDir=%s\a' "$PWD"
+  }
+  iterm2_after_cmd_executes() {
+    printf '\e]133;D;%s\a' "$?"
+    iterm2_print_state_data
+  }
+  PROMPT=$'%{\e]133;A\a%}'"$PROMPT"$'%{\e]133;B\a%}'
+  precmd_functions+=(iterm2_after_cmd_executes)
+  preexec_functions+=(iterm2_before_cmd_executes)
+  iterm2_print_state_data
+  printf '\e]1337;ShellIntegrationVersion=11;shell=zsh\a'
 fi
 #+END_SRC
 
@@ -4016,7 +3976,7 @@ fi
 for i in "$HOME"/.nix-profile/etc/profile.d/*.sh @out@/etc/profile.d/*.sh; do
   if [ -r "$i" ] && [ "$(@coreutils@/bin/basename "$i")" != nix-daemon.sh ]; then
     # shellcheck source=/dev/null
-    source "$i"
+    . "$i"
   fi
 done
 #+END_SRC
@@ -4153,65 +4113,26 @@ Set paths provided by Nix,
    '(calc-gnuplot-name "@gnuplot@/bin/gnuplot")
    '(gnuplot-program "@gnuplot@/bin/gnuplot")
    '(doc-view-ps2pdf-program "@ghostscript@/bin/ps2pdf")
-   '(dired-touch-program "@coreutils@/bin/touch")
-   '(dired-chmod-program "@coreutils@/bin/chmod")
-   '(dired-chown-program "@coreutils@/bin/chown")
-   '(diff-command "@diffutils@/bin/diff")
-   '(find-program "@findutils@/bin/find")
    '(epg-gpg-program "@gpg@/bin/gpg")
    '(epg-gpgconf-program "@gpg@/bin/gpgconf")
    '(epg-gpgsm-program "@gpg@/bin/gpgsm")
-   '(flycheck-sh-bash-executable "@bash@/bin/bash")
-   '(flycheck-sh-zsh-executable "@zsh@/bin/zsh")
-   '(flycheck-perl-executable "@perl@/bin/perl")
-   ;; '(flycheck-go-golint-executable "@golint@/bin/golint")
-   '(flycheck-haskell-hlint-executable "@hlint@/bin/hlint")
-   '(flycheck-python-flake8-executable "@flake8@/bin/flake8")
-   '(flycheck-asciidoc-executable "@asciidoc@/bin/asciidoc")
-   '(flycheck-less-executable "@lessc@/bin/lessc")
-   '(flycheck-c/c++-gcc-executable "@gcc@/bin/gcc")
-   '(flycheck-javascript-eslint-executable "@eslint@/bin/eslint")
-   '(flycheck-javascript-jshint-executable "@jshint@/bin/jshint")
-   ;; '(flycheck-go-build-executable "@go@/bin/go")
-   ;; '(flycheck-go-test-executable "@go@/bin/go")
-   '(flycheck-lua-executable "@lua@/bin/luac")
-   '(flycheck-xml-xmllint-executable "@libxml2@/bin/xmllint")
-   '(flycheck-html-tidy-executable "@tidy@/bin/tidy")
-   '(fortune-dir "@fortune@/share/games/fortunes")
-   '(fortune-program "@fortune@/bin/fortune")
-   '(fortune-file "@fortune@/share/games/fortunes/debian")
-   '(grep-program "@gnugrep@/bin/grep")
    '(haskell-check-command "@hlint@/bin/hlint")
    '(haskell-hoogle-command "@hoogle@/bin/hoogle")
    '(haskell-hasktags-path "@hasktags@/bin/hasktags")
-   '(ispell-grep-command "@gnugrep@/bin/grep")
    '(irony-cmake-executable "@cmake@/bin/cmake")
    '(jka-compr-info-compress-program "@ncompress@/bin/compress")
    '(jka-compr-info-uncompress-program "@ncompress@/bin/uncompress")
-   ;; '(irony-server-install-prefix "@irony@")
-   '(jka-compr-dd-program "@coreutils@/bin/dd")
-   ;; '(magit-git-executable "@git@/bin/git")
    '(markdown-command "@markdown2@/bin/markdown2")
-   '(manual-program "@man@/bin/man")
-   '(man-awk-command "@gawk@/bin/awk")
-   '(man-sed-command "@gnused@/bin/sed")
-   '(man-untabify-command "@coreutils@/bin/pr")
    '(nethack-executable "@nethack@/bin/nethack")
    '(org-pandoc-command "@pandoc@/bin/pandoc")
    '(pandoc-binary "@pandoc@/bin/pandoc")
-   '(remote-shell-program "@openssh@/bin/ssh")
    '(ripgrep-executable "@ripgrep@/bin/rg")
    '(rtags-path "@rtags@/bin")
    '(sql-ingres-program "@parallel@/bin/sql")
    '(sql-interbase-program "@unixODBC@/bin/isql")
-   ;; '(sql-mysql-program "@mariadb@/bin/mysql")
    '(sql-ms-program "@freetds@/bin/osql")
    '(sql-postgres-program "@freetds@/bin/osql")
    '(sql-sqlite-program "@sqliteInteractive@/bin/sqlite3")
-   '(tramp-encoding-shell "@bash@/bin/sh")
-   '(tex-shell "@bash@/bin/sh")
-   '(xargs-program "@findutils@/bin/xargs")
-   '(vc-git-program "@git@/bin/git")
    '(gnutls-program "@gnutls@/bin/gnutls-cli")
    '(pdf2dsc-command "@ghostscript@/bin/pdf2dsc")
    '(preview-gs-command "@texlive@/bin/rungs")
@@ -4234,11 +4155,7 @@ Set paths provided by Nix,
    '(dvips-command "@texlive@/bin/dvips")
    '(dvipng-command "@texlive@/bin/dvipng")
    '(ps2pdf-command "@ghostscript@/bin/ps2pdf")
-   '(locate-executable "@findutils@/bin/locate")
    '(ag-executable "@ag@/bin/ag")
-   '(notmuch-command "@notmuch@/bin/notmuch")
-   '(dumb-jump-rg-cmd "@ripgrep@/bin/rg")
-   '(dumb-jump-ag-cmd "@ag@/bin/ag")
    '(gud-gdb-command-name "@gdb@/bin/gdb")
    '(coq-prog-name "@coq@/bin/coqtop")
    '(coq-dependency-analyzer "@coq@/bin/coqdep")
@@ -4428,28 +4345,36 @@ they are not already installed! Use it at your own risk.
 Install Nix if it isn’t already.
 
 #+BEGIN_SRC shell
-set -e
+  {
 
-echo This script will install Nix and Git
-echo if they are not already installed.
+  set -e
 
-if ! command -v nix-env >/dev/null 2>&1; then
-    nix_installer=$(mktemp)
-    curl -L -s https://nixos.org/nix/install \
-      > $nix_installer
-    sh $nix_installer
-    [ -f $HOME/.profile ] && source $HOME/.profile
-fi
+  echo This script will install Nix and Git
+  echo if they are not already installed.
+
+  if ! command -v nix-env >/dev/null 2>&1; then
+      case "$(uname)" in
+        Darwin) curl -L -s https://nixos.org/nix/install | sh -s - --darwin-use-unencrypted-nix-store-volume --daemon ;;
+        Linux) curl -L -s https://nixos.org/nix/install | sh -s - --daemon ;;
+        *) curl -L -s https://nixos.org/nix/install | sh -s ;;
+      esac
+      [ -f $HOME/.profile ] && . $HOME/.profile
+      PATH="$HOME/.nix-profile/bin${PATH-+:$PATH}" # in case above didn't work
+  fi
 #+END_SRC
 
-Check for Git. Install if it’s not there.
+Check for Git & SSH. Install if it’s not there.
 
 #+BEGIN_SRC shell
 if ! command -v git >/dev/null 2>&1 || \
    { [ "$(uname)" = Darwin ] && \
      [ "$(command -v git)" = /usr/bin/git ] &&
-     xcode-select -p >/dev/null 2>&1; }; then
-    nix-env -iA nixpkgs.git 2>/dev/null || nix-env -iA nixos.git
+     ! xcode-select -p >/dev/null 2>&1; }; then
+    nix-env -iA nixpkgs.git 2>/dev/null || nix-env -iA nixos.git || nix --experimental-features 'nix-command flakes' profile install nixpkgs#git || nix-env -iA git -f https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz
+fi
+
+if ! command -v ssh >/dev/null 2>&1; then
+    nix-env -iA nixpkgs.openssh 2>/dev/null || nix-env -iA nixos.openssh || nix --experimental-features 'nix-command flakes' profile install nixpkgs#openssh || nix-env -iA openssh -f https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz
 fi
 #+END_SRC
 
@@ -4462,15 +4387,14 @@ fi
 #+END_SRC
 
 If we can’t find default.nix then we’ll clone from GitHub. This will be stored in
-=~/.local/share/bauer=. 
+=~/.local/share/bauer=.
 
 #+BEGIN_SRC shell
 if ! [ -f default.nix ]; then
     repo_dir=$HOME/.local/share/bauer
     mkdir -p $(dirname $repo_dir)
     if ! [ -d $repo_dir/.git ]; then
-      git clone https://github.com/matthewbauer/bauer \
-                $repo_dir
+      git clone https://github.com/matthewbauer/bauer $repo_dir
     else
       git -C $repo_dir pull
     fi
@@ -4478,50 +4402,59 @@ if ! [ -f default.nix ]; then
 fi
 #+END_SRC
 
+Pull private data, which may contain some binary caches we can use.
+
+#+BEGIN_SRC shell
+if [ -z "${GIST_ID-}" ] && [ -n "$1" ] && (echo "$1" | grep -q "^[0-9a-f]\{5,40\}$"); then
+  GIST_ID="$1"
+fi
+
+if [ -z "${GIST_ID-}" ]; then
+  case "${USER-}" in
+    mbauer) GIST_ID=862843ce9216abda0b10e1d753ce9d0f ;;
+  esac
+fi
+
+if [ -n "${GIST_ID-}" ]; then
+  echo Found Gist commit $1, cloning now.
+  ./gist-unpack.sh "${GIST_ID-}"
+fi
+#+END_SRC
+
 Install our new derivation.
 
 #+BEGIN_SRC shell
-nix-env -if .
+nix-env -if . || nix --experimental-features 'nix-command flakes' profile install
 #+END_SRC
 
 Source the profile.
 
 #+BEGIN_SRC shell
-if ! [ -f "$HOME/.profile" ] || ! grep -q 'source "\?$HOME/.nix-profile/etc/profile"\?' "$HOME/.profile"; then
-    echo '[ -f "$HOME/.nix-profile/etc/profile" ] && source "$HOME/.nix-profile/etc/profile"' >> "$HOME/.profile"
-fi
+  if ! [ -f "$HOME/.profile" ] || ! grep -q '\(source\|\.\) "\?$HOME/.nix-profile/etc/profile"\?' "$HOME/.profile"; then
+      echo '[ -f "$HOME/.nix-profile/etc/profile" ] && . "$HOME/.nix-profile/etc/profile"' >> "$HOME/.profile"
+  fi
 
-if ! [ -f "$HOME/.zshrc" ] || ! grep -q 'source "\?$HOME/.nix-profile/etc/zshrc"\?' "$HOME/.zshrc"; then
-    echo '[ -f "$HOME/.nix-profile/etc/zshrc" ] && source "$HOME/.nix-profile/etc/zshrc"' >> "$HOME/.zshrc"
-fi
+  if ! [ -f "$HOME/.zshrc" ] || ! grep -q '\(source\|\.\) "\?$HOME/.nix-profile/etc/zshrc"\?' "$HOME/.zshrc"; then
+      echo '[ -f "$HOME/.nix-profile/etc/zshrc" ] && source "$HOME/.nix-profile/etc/zshrc"' >> "$HOME/.zshrc"
+  fi
 
-if ! [ -f "$HOME/.bashrc" ] || ! grep -q 'source "\?$HOME/.nix-profile/etc/profile"\?' "$HOME/.bashrc"; then
-    echo '[ -f "$HOME/.nix-profile/etc/profile" ] && source "$HOME/.nix-profile/etc/profile"' >> "$HOME/.bashrc"
-fi
+  if ! [ -f "$HOME/.bashrc" ] || ! grep -q '\(source\|\.\) "\?$HOME/.nix-profile/etc/profile"\?' "$HOME/.bashrc"; then
+      echo '[ -f "$HOME/.nix-profile/etc/profile" ] && source "$HOME/.nix-profile/etc/profile"' >> "$HOME/.bashrc"
+  fi
 
-source "$HOME/.nix-profile/etc/profile"
+  echo To use bauer correctly, you must first source the profile.
+  echo
+  echo To do this, just run:
+  echo $ . $HOME/.nix-profile/etc/profile
 
-echo To use bauer correctly, you must first source the profile.
-echo
-echo To do this, just run:
-echo $ source $HOME/.nix-profile/etc/profile
+  if [ -n "${ZSH_NAME-}" ]; then
+      echo $ . $HOME/.nix-profile/etc/zshrc
+  fi
 
-if [ -n "${ZSH_NAME-}" ]; then
-    source "$HOME/.nix-profile/etc/zshrc"
-    echo $ source $HOME/.nix-profile/etc/zshrc
-fi
+  echo From you command line
+  echo You can also run either emacs or zsh to launch the environment
 
-echo From you command line
-echo You can also run either emacs or zsh to launch the environment
-#+END_SRC
-
-#+BEGIN_SRC shell
-if [ -n "$1" ] && \
-   command -v git >/dev/null 2>&1 \
-   && (echo "$1" | grep -q "^[0-9a-f]\{5,40\}$"); then
-    echo Found Gist commit $1, cloning now.
-    ./gist-unpack.sh "$1"
-fi
+  }
 #+END_SRC
 
 ** =runemacs.sh=
@@ -4581,9 +4514,9 @@ args.
 
 #+BEGIN_SRC nix :padline no
   # -*- mode: nix; coding: utf-8; -*-
-  { version ? "20.03"
+  { version ? "20.09"
   , channel ? {
-      "x86_64-darwin" = "nixpkgs-${version}-darwin";
+      "x86_64-darwin" = "nixpkgs-unstable";
     }.${builtins.currentSystem} or "nixos-${version}"
   , nixpkgs-url ?
     "https://nixos.org/channels/${channel}/nixexprs.tar.xz"
@@ -4638,8 +4571,15 @@ we have some options that can be provided...
   , config ? {}
   , overlays ? []
   , pkgs ? import <nixpkgs> { inherit crossSystem system config overlays; }
+  , evalPkgs ? pkgs
   , ensure ? f: n: f
   , small ? pkgs.config.bauer.small or true
+  , emacs-overlay ? { overlay = import (evalPkgs.fetchFromGitHub {
+      owner = "nix-community";
+      repo = "emacs-overlay";
+      rev = "28c31e0ae90b6fcf51f2d02c5d43fe1715dc6393";
+      sha256 = "1ijf27hf6yngrprc874l0phcjw55715h9z3b8dvmy0m5y7wpwswb";
+    }); }
   , ... }: let
   inherit (pkgs) stdenv lib runCommand buildEnv config writeText;
   inherit (stdenv) hostPlatform;
@@ -4676,7 +4616,7 @@ default to ‘emacs’ which should be the latest (Nixpkgs-unstable has version 
 currently).
 
 #+BEGIN_SRC nix
-  customEmacsPackages = pkgs.emacsPackagesNgGen
+  customEmacsPackages = (emacs-overlay.overlay pkgs pkgs).emacsPackagesFor
     (if hostPlatform.isDarwin then pkgs.emacsMacport else pkgs.emacs);
 #+END_SRC
 
@@ -4704,34 +4644,21 @@ substitution of all the attributes set.
 
 #+BEGIN_SRC nix
     site-paths = runCommand "site-paths.el" (with pkgs; ({
-      inherit (customEmacsPackages) emacs;
-      bash = bashInteractive;
-      inherit ripgrep ag
-              coreutils findutils openssh
-              zsh diffutils man gawk
-              gnugrep gnused cacert git;
-
+      inherit ripgrep ag coreutils;
       inherit manpages sysheaders sysframeworks
               schemas bins infopages;
-
       inherit MANPATH PATH XDG_DATA_DIRS INFOPATH TERMINFO_DIRS;
     } // (lib.optionalAttrs big {
       gpg = gnupg1compat;
-      inherit ant perl perlcritic
-        asciidoc lessc lua gcc
-        pandoc clang cmake ghostscript
+      inherit
+        pandoc ghostscript
         sqliteInteractive freetds
         parallel unixODBC ncompress
-        texinfoInteractive notmuch gnuplot
-        gdb coq rtags gnutls
-        ;
-      inherit (pythonPackages) flake8;
-      inherit (nodePackages) jshint eslint;
+        texinfoInteractive gnuplot
+        gdb coq rtags gnutls;
       inherit (haskellPackages) hoogle hlint;
       texlive = myTex;
       markdown2 = pythonPackages.markdown2;
-      tidy = html-tidy;
-      libxml2 = libxml2.bin;
     }))) ''
       substituteAll ${./site-paths.el.in} $out
       substituteInPlace $out \
@@ -4753,18 +4680,18 @@ Emacs configuration. use-package-list generates this list automatically.
 
 #+BEGIN_SRC nix
 package-list =
-  runCommand "package-list" {
-    buildInputs = [ customEmacsPackages.emacs ];
+  evalPkgs.runCommand "package-list" {
+    buildInputs = [ evalPkgs.emacs ];
   } ''
 #+END_SRC
 
 #+BEGIN_SRC nix
   emacs --batch --quick \
-        -L ${customEmacsPackages.use-package
+        -L ${evalPkgs.emacsPackages.use-package
             }/share/emacs/site-lisp/elpa/use-package-* \
-        -L ${customEmacsPackages.delight
+        -L ${evalPkgs.emacsPackages.delight
             }/share/emacs/site-lisp/elpa/delight-* \
-        -L ${customEmacsPackages.bind-key
+        -L ${evalPkgs.emacsPackages.bind-key
             }/share/emacs/site-lisp/elpa/bind-key-* \
         -l ${ensure ./site-lisp/set-defaults.el
                      "site-lisp/set-defaults.el"} \
@@ -4789,7 +4716,7 @@ myEmacsPackages' = builtins.fromJSON
 
 #+BEGIN_SRC nix
   default = runCommand "bauer-emacs" {
-    buildInputs = [ pkgs.emacs ];
+    buildInputs = [ pkgs.emacs pkgs.git ];
   } ''
 #+END_SRC
 
@@ -4839,17 +4766,17 @@ that we have just found in package-list. The solution is that complex eval
 below where we add all of the paths (plus their requisites) to the load
 path. This works but is hacky & I am interested in fixing it.
 
-#+BEGIN_SRC nix
-cd $out/share/emacs/site-lisp
-export HOME=$PWD
-emacs --batch --quick \
-      --eval \
-"(let ((default-directory \"${emacsWrapper
-  ((requiredPackages customEmacsPackages myEmacsPackages')
-   ++ (with customEmacsPackages; [use-package delight]))
-}/share/emacs/site-lisp\"))
-  (normal-top-level-add-subdirs-to-load-path))" \
-      -L . -f batch-byte-compile *.el
+#+BEGIN_SRC nix :tangle no
+  cd $out/share/emacs/site-lisp
+  export HOME=$PWD
+  emacs --batch --quick \
+        --eval \
+  "(let ((default-directory \"${emacsWrapper
+    ((requiredPackages customEmacsPackages myEmacsPackages')
+     ++ (with customEmacsPackages; [use-package delight]))
+  }/share/emacs/site-lisp\"))
+    (normal-top-level-add-subdirs-to-load-path))" \
+        -L . -f batch-byte-compile *.el
 #+END_SRC
 
 #+BEGIN_SRC nix
@@ -4914,8 +4841,7 @@ listed in =use-package= above is pulled into the closure.
   for pkg in "''${requires[@]}"; do
     linkEmacsPackage $pkg
   done
-  emacs --batch -f batch-byte-compile \
-                "$siteStart"
+  # emacs --batch -f batch-byte-compile "$siteStart"
   '';
 #+END_SRC
 
@@ -5106,33 +5032,36 @@ why this is necessary, but nXML complains otherwise.
 Full listing of packages that will be made available.
 
 #+BEGIN_SRC nix
-  userPackages = (with pkgs; [
-    # From common-path.nix
-    coreutils-full findutils diffutils gnused gnugrep gawk gnutar
-    gzip bzip2 gnumake bashInteractive patch xz
+    userPackages = (with pkgs; [
+      # From common-path.nix
+      coreutils-full findutils diffutils gnused gnugrep gawk gnutar
+      gzip bzip2 gnumake bashInteractive patch xz
 
-    # Helpful core tools
-    curl zsh cacert file lsof pstree which rsync
-    unzip man openssh less calc ag ripgrep
-    tree gnutls
-  ] ++ lib.optionals big ([
-    # Useful tools
-    isync notmuch graphviz indent
-    graphviz imagemagick
+      # Helpful core tools
+      curl zsh cacert file lsof pstree which rsync
+      unzip man less calc ag ripgrep
+      tree gnutls
+    ] ++ lib.optionals big ([
+      git
 
-    bazaar mercurial
+      # Useful tools
+      isync notmuch graphviz indent
+      graphviz imagemagick
 
-    # Programming interpreters/compilers
-    myTex rEnv perl python lua coq ocaml
-    openjdk nodejs gcc gdb
+      bazaar mercurial
 
-    travis v8
-  ] ++ (with netbsd; [ getent getconf ])
-    ++ (with nodePackages; [ tern heroku node2nix ])
-    ++ (with gitAndTools; [ hub ])
-    ++ (with haskellPackages; [ ghc jq nix-diff cabal2nix cabal-install ])
-    ++ (with unixtools; [ utillinux nettools procps ])
-  ));
+      # Programming interpreters/compilers
+      myTex rEnv perl python lua coq ocaml
+      openjdk nodejs gcc gdb
+
+      travis v8
+    ] ++ (lib.optional stdenv.hostPlatform.isDarwin openssh) # use /usr/bin/ ssh
+      ++ (with netbsd; [ getent getconf ])
+      ++ (with nodePackages; [ tern heroku node2nix ])
+      ++ (with gitAndTools; [ hub ])
+      ++ (with haskellPackages; [ ghc jq nix-diff cabal2nix cabal-install ])
+      ++ (with unixtools; [ utillinux nettools procps ])
+    ));
 #+END_SRC
 
 Setup global environment variables & directories. Most of the global directories
@@ -5164,19 +5093,24 @@ the most direct access to. Global directories should only contain system paths.
   INPUTRC = builtins.toFile "inputrc" ''
     $include /etc/inputrc
 
-    "\C-p":history-search-backward
-    "\C-n":history-search-forward
+    $if mode=emacs
+      "\C-p": history-search-backward
+      "\C-n": history-search-forward
+    $endif
 
     set colored-stats on
+    set colored-completion-prefix on
     set completion-ignore-case on
     set completion-prefix-display-length 3
+    set enable-bracketed-paste on
+    set expand-tilde on
+    set menu-complete-display-prefix on
     set mark-symlinked-directories on
     set show-all-if-ambiguous on
     set show-all-if-unmodified on
     set visible-stats on
-    set editing-mode emacs
 
-    Space:magic-space
+    Space: magic-space
   '';
 #+END_SRC
 
@@ -5185,7 +5119,7 @@ have been configured to use the paths above.
 
 #+BEGIN_SRC nix
 in buildEnv {
-  name = "bauer-1.5.1-zennad";
+  name = "bauer-1.5.3-zennad";
   buildInputs = [ pkgs.makeWrapper pkgs.bash ];
   postBuild = ''
     mkdir -p $out/etc
@@ -5224,12 +5158,12 @@ in buildEnv {
     INFOPATH = makeSearchPath "share/info" [infopages];
     XDG_DATA_DIRS = makeSearchPath "share" [xdg-data];
     TERMINFO_DIRS = makeSearchPath "share/terminfo" [terminfo];
+    emacs = myEmacs;
+    emacsConfig = default;
   };
   paths = [
     myEmacs
     (runCommand "my-profile" {
-      emacs = myEmacs;
-      inherit (pkgs) cacert;
       inherit PATH MANPATH XDG_DATA_DIRS INFOPATH TERMINFO_DIRS;
       bash_completion = pkgs.bash-completion;
     } ''
@@ -5243,7 +5177,6 @@ in buildEnv {
         --subst-var-by TERMINFO_DIRS ${TERMINFO_DIRS} \
         --subst-var-by INPUTRC ${INPUTRC}
     '')
-    pkgs.git
   ];
 }
 #+END_SRC
@@ -5308,6 +5241,9 @@ matrix:
       env: CHANNEL=nixos-20.03
     - os: linux
       dist: trusty
+      env: CHANNEL=nixos-20.09
+    - os: linux
+      dist: trusty
       env: CHANNEL=nixos-unstable
     - os: osx
       env: CHANNEL=nixpkgs-19.03-darwin
@@ -5315,6 +5251,8 @@ matrix:
       env: CHANNEL=nixpkgs-19.09-darwin
     - os: osx
       env: CHANNEL=nixpkgs-20.03-darwin
+    - os: osx
+      env: CHANNEL=nixpkgs-20.09-darwin
     - os: osx
       env: CHANNEL=nixpkgs-unstable
 #+END_SRC
@@ -5430,8 +5368,8 @@ gist-unpack.sh linguist-generated=true
 init.el        linguist-generated=true
 install        linguist-generated=true
 module.nix     linguist-generated=true
-nixos.nix      linguist-generated=true
 update.sh      linguist-generated=true
+flake.nix      linguist-generated=true
 #+END_SRC
 ** =init.el=
 
@@ -5441,8 +5379,7 @@ You can use this as part of [[~/.emacs.d/init.el][your Emacs init file]]:
 (load
   (expand-file-name "settings.el" user-emacs-directory) t)
 (package-initialize)
-(defvar bauer-dir
-        (expand-file-name ".emacs.d" (getenv "HOME")))
+(defvar bauer-dir user-emacs-directory)
 (defvar bauer-org
         (expand-file-name "README.org" bauer-dir))
 (add-to-list 'load-path
@@ -5462,6 +5399,9 @@ installation process. The above script should be used in places where Nix is
 unavailable.
 
 ** NixOS module
+:PROPERTIES:
+:header-args: :tangle module.nix :padline no
+:END:
 
 I’ve provided a module suitable for use with a NixOS configuration. To use it,
 just add something like the following to your configuration.nix file.
@@ -5480,7 +5420,7 @@ just add something like the following to your configuration.nix file.
 The actual module implementation follow here. It will pull in some files needed
 for all of this to work. It should provide ‘bauer’ as a runnable command.
 
-#+BEGIN_SRC nix :tangle no :padline no
+#+BEGIN_SRC nix
 # -*- mode: nix; coding: utf-8; -*-
 { config, lib, pkgs, ... }: with lib;
 
@@ -5545,6 +5485,67 @@ in {
 }
 #+END_SRC
 
+** Flake
+:PROPERTIES:
+:header-args: :tangle flake.nix :padline no
+:END:
+
+#+BEGIN_SRC nix :tangle flake.nix :padline no
+  {
+    description = "an Emacs+Nix IDE";
+
+    inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
+    inputs.emacs-overlay.url = "github:nix-community/emacs-overlay";
+
+    outputs = { self, nixpkgs, emacs-overlay }: let
+      systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" ];
+      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+    in {
+      packages = forAllSystems (system: {
+        bauer = let
+          pkgs = nixpkgsFor.${system};
+          evalPkgs = nixpkgsFor.x86_64-linux;
+        in import (evalPkgs.runCommand "README" {
+          buildInputs = with evalPkgs; [ emacs git ];
+        } (''
+          install -D ${./README.org} $out/README.org
+          cd $out
+          cp -r ${./site-lisp} site-lisp
+          emacs --batch --quick \
+                -l ob-tangle \
+                --eval "(org-babel-tangle-file \"README.org\")" > /dev/null
+          cp bauer.nix default.nix
+        '')) { inherit pkgs emacs-overlay evalPkgs; };
+      });
+
+      defaultPackage = forAllSystems (system: self.packages.${system}.bauer);
+
+      apps = forAllSystems (system: {
+        bauer = {
+          type = "app";
+          program = "${self.packages.${system}.bauer}/bin/run";
+        };
+      });
+
+      defaultApp = forAllSystems (system: self.apps.${system}.bauer);
+
+      devShell = forAllSystems (system:
+        with nixpkgsFor.${system};
+        stdenv.mkDerivation {
+          name = "bauer";
+          nativeBuildInputs = [ emacs git ];
+          shellHook = ''
+            echo Run ./update.sh to generate files.
+          '';
+        });
+
+      nixosModules.bauer = {
+        imports = [ ./module.nix ];
+      };
+    };
+  }
+#+END_SRC
 ** Deploy script
 :PROPERTIES:
 :header-args: :tangle deploy.sh :shebang "#!/usr/bin/env sh"
@@ -5578,7 +5579,7 @@ conflicts are not handled, and must be dealt with manually.
 #+END_SRC
 ** Gist script
 :PROPERTIES:
-:header-args: :tangle gist-unpack.sh :shebang "#!/usr/bin/env sh"
+:header-args: :tangle gist-unpack.sh :shebang "#!/usr/bin/env bash"
 :END:
 
 Private file handling for new environments. Unpack private files from a Gist
@@ -5616,98 +5617,158 @@ from the Gist and copy them to the =$HOME= directory. =--force= can be passed to
 allow overriding your current =$HOME= files.
 
 #+BEGIN_SRC shell
-if [ $# -eq 0 ]; then
-    echo Usage: "$0" GIST_ID >&2
-    exit 1
-fi
+  if [ $# -eq 0 ]; then
+      echo Usage: "$0" GIST_ID [ -u USER ] [ -t TOKEN ] >&2
+      exit 1
+  fi
 
-FORCE=
-GIST_ID=
-while [ $# -gt 0 ]; do
-    case "$1" in
-        -f|--force)
-            echo Forcing install... >&2
-            FORCE=1
-            shift
-            ;;
-        *)
-            if [ -n "${GIST_ID-}" ]; then
-                echo Multiple Gist ids passed! >&2
-                exit 1
-            fi
-            GIST_ID="$1"
-            echo Using gist "$GIST_ID"x >&2
-            shift
-            ;;
-    esac
-done
+  FORCE=
+  GIST_ID=
+  USER=
+  TOKEN=
+  while [ $# -gt 0 ]; do
+      case "$1" in
+          -f|--force)
+              echo Forcing install... >&2
+              FORCE=1
+              shift
+              ;;
+          -u|--user)
+              if [ -n "$USER" ]; then
+                  echo Multiple users passed! >&2
+                  exit 1
+              fi
+              shift
+              USER="$1"
+              shift
+              ;;
+          -t|--token)
+              if [ -n "$TOKEN" ]; then
+                  echo Multiple tokens passed! >&2
+                  exit 1
+              fi
+              shift
+              TOKEN="$1"
+              shift
+              ;;
+          -g|--gist-id)
+              if [ -n "$GIST_ID" ]; then
+                  echo Multiple Gist ids passed! >&2
+                  exit 1
+              fi
+              shift
+              GIST_ID="$1"
+              shift
+              ;;
+          ,*)
+              if [ -n "$GIST_ID" ]; then
+                  echo Multiple Gist ids passed! >&2
+                  exit 1
+              fi
+              GIST_ID="$1"
+              echo Using gist "$GIST_ID" >&2
+              shift
+              ;;
+      esac
+  done
 
-if [ -z "$GIST_ID" ]; then
-    echo No gist id provided. >&2
-    exit 1
-fi
+  if [ -z "$GIST_ID" ]; then
+      echo No gist id provided. >&2
+      exit 1
+  fi
 
-gistdir="$(mktemp -d)"
-setup() {
-    git clone git@github.com:"$GIST_ID".git "$gistdir"
-    pushd "$gistdir" >/dev/null
-}
+  mkdir -p $HOME/.ssh
+  echo "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==" >> $HOME/.ssh/known_hosts
 
-cleanup() {
-    popd >/dev/null
-    rm -rf "$gistdir"
-}
+  ssh -T git@github.com 2> /dev/null
+  if [ $? -eq 255 ]; then
+      if ! [ -f "$HOME/.ssh/id_rsa" ]; then
+          echo No ssh key is available. Generating it and adding it to GitHub to continue.
+          ssh-keygen -t rsa -N "" -f "$HOME/.ssh/id_rsa"
+      fi
 
-setup
-trap cleanup EXIT
+      if [ -z "$USER" ] && [ -t 1 ]; then
+          echo -n "GitHub Username: "; read USER
+      fi
+      if [ -z "$USER" ]; then
+          echo Username cannot be empty. Pass -u with your username to continue.
+          exit 1
+      fi
+      auth="$USER"
+      if [ -n "$TOKEN" ]; then
+          auth="$auth:$TOKEN"
+      fi
+      curl -u "$auth" -d "$(printf '{"title": "%s", "key": "%s"}' "${HOST-$(hostname)}" "$(cat $HOME/.ssh/id_rsa.pub)")" https://api.github.com/user/keys > /dev/null
+  fi
 
-if [ -n "${BASH_VERSION-}" ]; then
-    shopt -s dotglob
-fi
-for f in *; do
-    if [ "$f" = ".git" ]; then
-        continue
-    fi
-    if ! [ -f "$f" ]; then
-        echo Skipping "$f", not a file >&2
-        continue
-    fi
-    DEST=
-    case "$f" in
-        settings.el) DEST="$HOME/.emacs.d/settings.el" ;;
-        .sshconfig) DEST="$HOME/.ssh/config" ;;
-        .ssh_authorized_keys) DEST="$HOME/.ssh/authorized_keys" ;;
-        nix.conf) DEST="$HOME/.config/nix/nix.conf" ;;
-        .gitignore) DEST="$HOME/.config/git/ignore" ;;
-        .gitconfig) DEST="$HOME/.config/git/config" ;;
-        *) DEST="$HOME/$f" ;;
-    esac
-    CONCAT=
-    case "$f" in
-        .authinfo) CONCAT=1 ;;
-        .sshconfig) CONCAT=1 ;;
-        .ssh_authorized_keys) CONCAT=1 ;;
-        .gitignore) CONCAT=1 ;;
-        nix.conf) CONCAT=1 ;;
-    esac
-    if [ -z "$DEST" ]; then
-        echo Skipping "$f", no destination found >&2
-        continue
-    fi
-    if [ -f "$DEST" ] && [ -z "$FORCE" ] && [ -z "$CONCAT" ]; then
-        echo Skipping "$f", destination already exists >&2
-        continue
-    fi
-    mkdir -p "$(dirname "$DEST")"
-    if [ -n "$CONCAT" ]; then
-        cat "$f" >> "$DEST"
-    else
-        cp "$f" "$DEST"
-    fi
-    if [ "$f" = .authinfo ]; then
-        chmod 600 "$DEST"
-    fi
-done
+  gistdir="$(mktemp -d)"
+  setup() {
+      if ! git clone git@github.com:"$GIST_ID".git "$gistdir"; then
+          echo Failed to clone Gist. Verify "https://gist.github.com/$GIST_ID" exists >&2
+          echo and you have permission to access it. >&2
+          exit 1
+      fi
+
+      pushd "$gistdir" >/dev/null
+  }
+
+  cleanup() {
+      popd >/dev/null
+      rm -rf "$gistdir"
+  }
+
+  setup
+  trap cleanup EXIT
+
+  if [ -n "${BASH_VERSION-}" ]; then
+      shopt -s dotglob
+  fi
+  shopt -s nullglob
+  for f in *; do
+      if [ "$f" = ".git" ]; then
+          continue
+      fi
+      if ! [ -f "$f" ]; then
+          echo Skipping "$f", not a file >&2
+          continue
+      fi
+      DEST=
+      case "$f" in
+          settings.el) DEST="$HOME/.config/emacs/settings.el" ;;
+          .sshconfig) DEST="$HOME/.ssh/config" ;;
+          .ssh_authorized_keys) DEST="$HOME/.ssh/authorized_keys" ;;
+          nix.conf) DEST="$HOME/.config/nix/nix.conf" ;;
+          .gitignore) DEST="$HOME/.config/git/ignore" ;;
+          .gitconfig) DEST="$HOME/.config/git/config" ;;
+          .gitattributes) DEST="$HOME/.config/git/attributes" ;;
+          ,*) DEST="$HOME/$f" ;;
+      esac
+      CONCAT=
+      case "$f" in
+          .authinfo) CONCAT=1 ;;
+          .sshconfig) CONCAT=1 ;;
+          .ssh_authorized_keys) CONCAT=1 ;;
+          .gitignore) CONCAT=1 ;;
+          nix.conf) CONCAT=1 ;;
+      esac
+      if [ -z "$DEST" ]; then
+          echo Skipping "$f", no destination found >&2
+          continue
+      fi
+      if [ -f "$DEST" ] && [ -z "$FORCE" ] && [ -z "$CONCAT" ]; then
+          echo Skipping "$f", destination already exists >&2
+          continue
+      fi
+      mkdir -p "$(dirname "$DEST")"
+      if [ -n "$CONCAT" ]; then
+          cat "$f" >> "$DEST"
+      else
+          cp "$f" "$DEST"
+      fi
+      if [ "$f" = .authinfo ]; then
+          chmod 600 "$DEST"
+      fi
+  done
 #+END_SRC
 
 ** LICENSE
@@ -5734,5 +5795,4 @@ done
 # fill-column: 80
 # sentence-end-double-space: nil
 # indent-tabs-mode: nil
-# tab-width: 8
 # End:
