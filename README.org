@@ -1182,24 +1182,24 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
                              (setq-local company-backends '((company-anaconda
                                                              company-capf))))))
 #+END_SRC
-***** company-auctex
-#+BEGIN_SRC emacs-lisp
-  (use-package company-auctex
-    :commands (company-auctex
-               company-auctext-labels
-               company-auctest-bibs
-               company-auctex-macros
-               company-auctext-symbols
-               company-auctext-environments)
-    :hook
-    (tex-mode . (lambda ()
-                  (setq-local company-backends '((company-auctex-labels
-                                                  company-auctex-bibs
-                                                  company-auctex-macros
-                                                  company-auctex-environments
-                                                  company-auctex-symbols
-                                                  company-capf))))))
-#+END_SRC
+#***** company-auctex
+##+BEGIN_SRC emacs-lisp
+#  (use-package company-auctex
+#    :commands (company-auctex
+#               company-auctext-labels
+#               company-auctest-bibs
+#               company-auctex-macros
+#               company-auctext-symbols
+#               company-auctext-environments)
+#    :hook
+#    (tex-mode . (lambda ()
+#                  (setq-local company-backends '((company-auctex-labels
+#                                                  company-auctex-bibs
+#                                                  company-auctex-macros
+#                                                  company-auctex-environments
+#                                                  company-auctex-symbols
+#                                                  company-capf))))))
+##+END_SRC
 
 ***** company-coq
 #+BEGIN_SRC emacs-lisp
@@ -2855,23 +2855,23 @@ packages (for completion, syntax checking, etc.)
     (make-local-variable 'js-indent-level))
 #+END_SRC
 
-**** LaTeX
-***** auctex
-
-Auctex provides some helpful tools for working with LaTeX.
-
-****** tex-site
-#+BEGIN_SRC emacs-lisp
-  (use-package tex-site
-    :ensure auctex
-    :no-require
-    :mode ("\\.tex\\'" . TeX-latex-mode))
-#+END_SRC
-****** tex-mode
-#+BEGIN_SRC emacs-lisp
-  (use-package tex-mode
-    :hook (TeX-mode . latex-electric-env-pair-mode))
-#+END_SRC
+#**** LaTeX
+#***** auctex
+#
+#Auctex provides some helpful tools for working with LaTeX.
+#
+#****** tex-site
+##+BEGIN_SRC emacs-lisp
+#  (use-package tex-site
+#    :ensure auctex
+#    :no-require
+#    :mode ("\\.tex\\'" . TeX-latex-mode))
+##+END_SRC
+#****** tex-mode
+##+BEGIN_SRC emacs-lisp
+#  (use-package tex-mode
+#    :hook (TeX-mode . latex-electric-env-pair-mode))
+##+END_SRC
 **** Lean
 #+BEGIN_SRC emacs-lisp
   (use-package lean-mode
