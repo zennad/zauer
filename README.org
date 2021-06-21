@@ -18,7 +18,7 @@
 #+html_head: <link rel="stylesheet" href="https://matthewbauer.us/style.css" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 #+link_home: https://matthewbauer.us
 #+link_up: https://matthewbauer.us/bauer/
-#+version: 1.5.3
+#+version: 1.5.3-zennad
 
 This ORG-mode file generates an Emacs configuration. I am calling it an
 [[https://www.gnu.org/s/emacs/][Emacs]]+[[https://nixos.org][Nix]] IDE. That is, the Emacs configuration is /integrated/ with hardcoded
@@ -406,12 +406,14 @@ The format of arguments to =set-defaults= is identical to the one used by
 | vc-make-backup-files                          | t                 |
 | version-control                               | t                 |
 | view-read-only                                | t                 |
+| view-inhibit-help-message                     | t                 |
 | window-combination-resize                     | t                 |
 | whitespace-line-column                        | 120               |
 | which-key-idle-delay                          | 0.4               |
 | which-key-idle-secondary-delay                | 0.4               |
 | woman-imenu                                   | t                 |
 | x-stretch-cursor                              | t                 |
+| envrc-none-lighter                            | nil               |
 
 #+BEGIN_SRC emacs-lisp :var defaults=defaults
   (apply 'set-defaults
@@ -648,8 +650,7 @@ Misc. defaults that don’t fit above. TODO: move these above.
              "(\\`/[^/|:][^/|]*:\\)"))
    '(which-key-lighter "")
    '(whitespace-action '(cleanup))
-   '(whitespace-style '(face trailing lines space-before-tab
-                             empty lines-style))
+   '(whitespace-style '(face trailing lines space-before-tab empty))
    '(whitespace-global-modes '(not erc-mode ses-mode)))
 #+END_SRC
 
@@ -677,6 +678,7 @@ set in the Emacs process.
 
 #+BEGIN_SRC emacs-lisp
   (set-envs
+   '("VISUAL" "emacsclient -a emacs")
    '("EDITOR" "emacsclient -a emacs")
    '("NODE_NO_READLINE" "1")
    '("PAGER" "cat")
@@ -1343,6 +1345,15 @@ indications show where a file has been edited from the last Git commit.
            (org-mode . diff-hl-mode)))
 #+END_SRC
 
+**** envrc
+#+BEGIN_SRC emacs-lisp
+  ;; envrc must come late in the init.el file so add-hook adds it first
+  ;; in `find-file-hook'.
+  (use-package envrc
+    :demand t
+    :config
+    (envrc-global-mode))
+#+END_SRC
 **** dtrt-indent
 
 [[https://github.com/jscheid/dtrt-indent][GitHub]]
@@ -2585,6 +2596,19 @@ Each =use-package= declaration corresponds to =major modes= in Emacs lingo.
 Each language will at least one of these major modes as well as associated
 packages (for completion, syntax checking, etc.)
 
+#+BEGIN_SRC emacs-lisp
+      (use-package lsp-mode
+        :commands (lsp-install-server lsp)
+        :hook (lsp-mode . lsp-enable-which-key-integration))
+
+      (use-package lsp-ui
+        :commands (lsp-ui-mode)
+        :bind (:map lsp-ui-mode-map
+               ([remap xref-find-definitions] . lsp-ui-peek-find-definitions)
+               ([remap xref-find-references] . lsp-ui-peek-find-references)
+               ([remap imenu] . lsp-ui-imenu)))
+#+END_SRC
+
 **** C/C++
 
 ***** Irony
@@ -2745,28 +2769,40 @@ packages (for completion, syntax checking, etc.)
            ;;              "haskell-doc")
            ;;            (setq-local eldoc-documentation-function
            ;;                        'haskell-doc-current-info)))
+           (haskell-mode . (lambda () (whitespace-mode -1)))
            )
+
     :functions xref-push-marker-stack
     :commands (haskell-session-maybe haskell-mode-find-def haskell-ident-at-point
-                haskell-mode-handle-generic-loc)
+                                     haskell-mode-handle-generic-loc)
     :bind (:map haskell-mode-map
-           ("C-c h" . haskell-hoogle)
-           ("C-c C-." . haskell-navigate-imports)
-           ("C-`" . haskell-interactive-bring)
-           ("C-c `" . haskell-interactive-bring)
-           ("C-c C-t" . haskell-process-do-type)
-           ("C-c C-i" . haskell-process-do-info)
-           ("C-c C-c" . haskell-process-cabal-build)
-           ("C-c C-k" . haskell-interactive-mode-clear)
-           ("C-c c" . haskell-process-cabal)
-           ;; ("M-." . haskell-mode-jump-to-def)
-           :map haskell-cabal-mode-map
-           ("C-`" . haskell-interactive-bring)
-           ("C-c C-k" . haskell-interactive-mode-clear)
-           ("C-c C-c" . haskell-process-cabal-build)
-           ("C-c c" . haskell-process-cabal))
+                ("C-c h" . haskell-hoogle)
+                ("C-c C-." . haskell-navigate-imports)
+                ("C-`" . haskell-interactive-bring)
+                ("C-c `" . haskell-interactive-bring)
+                ("C-c C-t" . haskell-process-do-type)
+                ("C-c C-i" . haskell-process-do-info)
+                ("C-c C-c" . haskell-process-cabal-build)
+                ("C-c C-k" . haskell-interactive-mode-clear)
+                ("C-c c" . haskell-process-cabal)
+                ;; ("M-." . haskell-mode-jump-to-def)
+                :map haskell-cabal-mode-map
+                ("C-`" . haskell-interactive-bring)
+                ("C-c C-k" . haskell-interactive-mode-clear)
+                ("C-c C-c" . haskell-process-cabal-build)
+                ("C-c c" . haskell-process-cabal))
     :init
-    (add-to-list 'completion-ignored-extensions ".hi"))
+    (add-to-list 'completion-ignored-extensions ".hi")
+    :config
+    (setq flymake-allowed-file-name-masks (delete '("\\.l?hs\\'" haskell-flymake-init) flymake-allowed-file-name-masks))
+    )
+#+END_SRC
+
+***** lsp-haskell
+#+BEGIN_SRC emacs-lisp
+  (use-package lsp-haskell
+    :hook ((haskell-mode . lsp-deferred)
+           (haskell-literate-mode . lsp-deferred)))
 #+END_SRC
 
 ***** haskell-interactive-mode
@@ -3089,6 +3125,10 @@ macho-mode to toggle then M-x hexl-mode.
     :disabled)
 #+END_SRC
 
+**** Terraform
+#+BEGIN_SRC emacs-lisp
+  (use-package terraform-mode)
+#+END_SRC
 **** Web
 
 #+BEGIN_SRC emacs-lisp
@@ -3489,94 +3529,99 @@ Lots of common variables need to know about the =.nix-profile= directory. We
 leave the first MANPATH separator empty so it uses the default PATH lookup as
 well. CVS_RSH is needed if your ever need to do cvs. HISTFILE sets where to
 store the bash or zsh history. We set the history size to 10000 for good
-measure. EDITOR should point to this editor.
+measure. VISUAL should point to this editor.
 
 Here we setup =.profile=. First, setup exports. We leave the first part of
 MANPATH empty so it resolves using the PATH-based method. Fallbacks are provided
 just in case.
 
 #+BEGIN_SRC shell
-  export PATH="$HOME/bin":"$HOME/.nix-profile/bin":$PREFIX/bin:@PATH@${PATH:+:$PATH} \
-         INFOPATH="$HOME/.nix-profile/share/info":@INFOPATH@${INFOPATH:+:$INFOPATH} \
-         MANPATH=:"$HOME/.nix-profile/share/man":@MANPATH@${MANPATH:+:$MANPATH} \
-         XDG_DATA_DIRS="$HOME/.nix-profile/share":@XDG_DATA_DIRS@${XDG_DATA_DIRS:+:$XDG_DATA_DIRS} \
-         TERMINFO_DIRS=@TERMINFO_DIRS@${TERMINFO_DIRS:+:$TERMINFO_DIRS}
+    export PATH="$HOME/bin":"$HOME/.nix-profile/bin":$PREFIX/bin:@PATH@${PATH:+:$PATH} \
+           INFOPATH="$HOME/.nix-profile/share/info":@INFOPATH@${INFOPATH:+:$INFOPATH} \
+           MANPATH=:"$HOME/.nix-profile/share/man":@MANPATH@${MANPATH:+:$MANPATH} \
+           XDG_DATA_DIRS="$HOME/.nix-profile/share":@XDG_DATA_DIRS@${XDG_DATA_DIRS:+:$XDG_DATA_DIRS} \
+           TERMINFO_DIRS=@TERMINFO_DIRS@${TERMINFO_DIRS:+:$TERMINFO_DIRS}
 
-  if [ -z "${SSH_CONNECTION-}" ] && [ -z "${SSH_AUTH_SOCK-}" ] && command -v ssh-agent > /dev/null; then
-    eval $(ssh-agent) > /dev/null
-  fi
+    if [ -z "${SSH_CONNECTION-}" ] && [ -z "${SSH_AUTH_SOCK-}" ] && command -v ssh-agent > /dev/null; then
+      eval $(ssh-agent) > /dev/null
+    fi
 
-  HISTSIZE=50000
-  SAVEHIST=10000
+    HISTSIZE=50000
+    SAVEHIST=10000
 
-  if [ -z "${TERM-}" ] || [ "$TERM" = dumb ] || [ "$TERM" = dumb-emacs-ansi ] || [ "$TERM" = eterm-color ]; then
-    if [ -n "${DISPLAY-}" ]; then
-      export EDITOR='emacsclient -a emacs -c'
+    if [ -z "${TERM-}" ] || [ "$TERM" = dumb ] || [ "$TERM" = dumb-emacs-ansi ] || [ "$TERM" = eterm-color ]; then
+      if [ -n "${DISPLAY-}" ]; then
+        export VISUAL='emacsclient -a emacs -c'
+      else
+        export VISUAL='emacsclient -a emacs'
+      fi
+    elif [ -n "${PS1-}" ]; then
+      export VISUAL='emacsclient -a "emacs -nw" -t'
     else
-      export EDITOR='emacsclient -a emacs'
+      export VISUAL='emacsclient -a emacs'
     fi
-  elif [ -n "${PS1-}" ]; then
-    export EDITOR='emacsclient -a "emacs -nw" -t'
-  else
-    export EDITOR='emacsclient -a emacs'
-  fi
+    export EDITOR="$VISUAL"
 
-  if [ -n "${SSH_CONNECTION-}" ]; then
-    export PINENTRY_USER_DATA=USE_CURSES=1
-  fi
-
-  export LESS='-FRSMi' \
-         SYSTEMD_LESS=FRSMi \
-         INPUTRC=@INPUTRC@ \
-         GPG_TTY=$TTY \
-         CVS_RSH=ssh
-
-  HISTCONTROL=ignoredups:erasedups:ignorespace
-  PROMPT_DIRTRIM=4
-
-  if [ -n "${BASH_VERSION-}" ]; then
-    if [[ $- == *i* ]]; then
-      stty -ixon
+    if [ -n "${SSH_CONNECTION-}" ]; then
+      export PINENTRY_USER_DATA=USE_CURSES=1
     fi
 
-    shopt -s cdable_vars \
-             cdspell \
-             checkwinsize \
-             histappend \
-             lithist
+    export LESS='-FRSMi' \
+           SYSTEMD_LESS=FRSMi \
+           INPUTRC=@INPUTRC@ \
+           GPG_TTY=$TTY \
+           CVS_RSH=ssh
 
-    shopt -s autocd \
-             checkjobs \
-             direxpand \
-             dirspell \
-             histverify \
-             histreedit \
-             no_empty_cmd_completion \
-             globstar \
-    2>/dev/null || true
+    HISTCONTROL=ignoredups:erasedups:ignorespace
+    PROMPT_DIRTRIM=4
 
-    if [ -n "${PS1-}" ] && [ "${TERM-}" != dumb ] && shopt -q progcomp 2>/dev/null && [ "${BASH_VERSINFO-0}" -gt 3 ]; then
-      . @bash_completion@/share/bash-completion/bash_completion
-    fi
+    if [ -n "${BASH_VERSION-}" ]; then
+      if [[ $- == *i* ]]; then
+        stty -ixon
+      fi
 
-    if { [ "${TERM-}" = dumb-emacs-ansi ] || [ -n "${INSIDE_EMACS-}" ]; } && [ -n "${SSH_CONNECTION-}" ]; then
-      PROMPT_DIRTRIM=0
-      PS1='\[\e[34m\]/ssh:\u@\H:$PWD\[\e[0m\] \[\e[33m\]$\[\e[0m\] '
-    elif [ -n "${SSH_CONNECTION-}" ]; then
-      PROMPT_DIRTRIM=0
-      PS1='\[\e[34m\]ssh://\u@\H\[\e[36m\]$PWD\[\e[0m\] \[\e[33m\]$\[\e[0m\] '
-    else
-      PS1='\[\e[34m\]\u@\h\[\e[0m\]:\[\e[36m\]\w \[\e[33m\]\$\[\e[0m\] '
-    fi
+      shopt -s cdable_vars \
+               cdspell \
+               checkwinsize \
+               histappend \
+               lithist
 
-    if { [ "${TERM_PROGRAM-}" = iTerm.app ] || [ -n "${SSH_CONNECTION-}" ]; } && [ "$TERM" != dumb-emacs-ansi ] && [ "$TERM" != eterm-color ] && [ "$TERM" != dumb ]; then
-      PS1='\[\e]133;D;\$?\a\e]133;A\a\]'"$PS1"'\[\e]133;B\a\]'
-    fi
+      shopt -s autocd \
+               checkjobs \
+               direxpand \
+               dirspell \
+               histverify \
+               histreedit \
+               no_empty_cmd_completion \
+               globstar \
+      2>/dev/null || true
 
-    alias ...='../..' \
-          ....='../../..' \
-          .....='../../../..' \
-          ......='../../../../..'
+      if [ -n "${PS1-}" ] && [ "${TERM-}" != dumb ] && shopt -q progcomp 2>/dev/null && [ "${BASH_VERSINFO-0}" -gt 3 ]; then
+        . @bash_completion@/share/bash-completion/bash_completion
+      fi
+
+      if { [ "${TERM-}" = dumb-emacs-ansi ] || [ -n "${INSIDE_EMACS-}" ]; } && [ -n "${SSH_CONNECTION-}" ]; then
+        PROMPT_DIRTRIM=0
+        PS1='\[\e[34m\]/ssh:\u@\H:$PWD\[\e[0m\] \[\e[33m\]$\[\e[0m\] '
+      elif [ -n "${SSH_CONNECTION-}" ]; then
+        PROMPT_DIRTRIM=0
+        PS1='\[\e[34m\]ssh://\u@\H\[\e[36m\]$PWD\[\e[0m\] \[\e[33m\]$\[\e[0m\] '
+      else
+        PS1='\[\e[34m\]\u@\h\[\e[0m\]:\[\e[36m\]\w \[\e[33m\]\$\[\e[0m\] '
+      fi
+
+      if { [ "${TERM_PROGRAM-}" = iTerm.app ] || [ -n "${SSH_CONNECTION-}" ]; } && [ "$TERM" != dumb-emacs-ansi ] && [ "$TERM" != eterm-color ] && [ "$TERM" != dumb ]; then
+        PS1='\[\e]133;D;\$?\a\e]133;A\a\]'"$PS1"'\[\e]133;B\a\]'
+      fi
+
+      alias ...='../..' \
+            ....='../../..' \
+            .....='../../../..' \
+            ......='../../../../..'
+
+      if command -v direnv > /dev/null; then
+        eval "$(direnv hook bash)"
+      fi
   fi
 #+END_SRC
 
@@ -3621,6 +3666,8 @@ Then setup aliases.
       exit 1
     fi
   }
+
+  take() { mkdir -p $@ && cd ${@:$#} ; }
 
   set -o noclobber -o notify
 
@@ -3950,6 +3997,14 @@ if { [ "${TERM_PROGRAM-}" = iTerm.app ] || [ -n "${SSH_CONNECTION-}" ]; } && [ "
   iterm2_print_state_data
   printf '\e]1337;ShellIntegrationVersion=11;shell=zsh\a'
 fi
+#+END_SRC
+
+direnv
+
+#+BEGIN_SRC shell
+  if command -v direnv > /dev/null; then
+    eval "$(direnv hook zsh)"
+  fi
 #+END_SRC
 
 ** =etc-profile.sh=
@@ -4405,20 +4460,24 @@ fi
 Pull private data, which may contain some binary caches we can use.
 
 #+BEGIN_SRC shell
-if [ -z "${GIST_ID-}" ] && [ -n "$1" ] && (echo "$1" | grep -q "^[0-9a-f]\{5,40\}$"); then
-  GIST_ID="$1"
-fi
+  if [ -z "${GIST_ID-}" ] && [ -n "$1" ] && (echo "$1" | grep -q "^[0-9a-f]\{5,40\}$"); then
+    GIST_ID="$1"
+  fi
 
-if [ -z "${GIST_ID-}" ]; then
-  case "${USER-}" in
-    mbauer) GIST_ID=862843ce9216abda0b10e1d753ce9d0f ;;
-  esac
-fi
+  if [ -n "${GIST_ID-}" ]; then
+    URL=ssh://git@github.com/"$GIST_ID".git
+  fi
 
-if [ -n "${GIST_ID-}" ]; then
-  echo Found Gist commit $1, cloning now.
-  ./gist-unpack.sh "${GIST_ID-}"
-fi
+  if [ -z "${URL-}" ]; then
+    case "${USER-}" in
+      mbauer|matthewbauer) URL=ssh://git@github.com/matthewbauer/dotfiles.git ;;
+    esac
+  fi
+
+  if [ -n "${URL-}" ]; then
+    echo Found Gist commit "$1", cloning now.
+    ./gist-unpack.sh "$URL"
+  fi
 #+END_SRC
 
 Install our new derivation.
@@ -4434,8 +4493,8 @@ Source the profile.
       echo '[ -f "$HOME/.nix-profile/etc/profile" ] && . "$HOME/.nix-profile/etc/profile"' >> "$HOME/.profile"
   fi
 
-  if ! [ -f "$HOME/.zshrc" ] || ! grep -q '\(source\|\.\) "\?$HOME/.nix-profile/etc/zshrc"\?' "$HOME/.zshrc"; then
-      echo '[ -f "$HOME/.nix-profile/etc/zshrc" ] && source "$HOME/.nix-profile/etc/zshrc"' >> "$HOME/.zshrc"
+  if ! [ -f "$HOME/.zshenv" ] || ! grep -q '\(source\|\.\) "\?$HOME/.nix-profile/etc/zshrc"\?' "$HOME/.zshenv"; then
+      echo '[ -f "$HOME/.nix-profile/etc/zshrc" ] && source "$HOME/.nix-profile/etc/zshrc"' >> "$HOME/.zshenv"
   fi
 
   if ! [ -f "$HOME/.bashrc" ] || ! grep -q '\(source\|\.\) "\?$HOME/.nix-profile/etc/profile"\?' "$HOME/.bashrc"; then
@@ -4577,8 +4636,8 @@ we have some options that can be provided...
   , emacs-overlay ? { overlay = import (evalPkgs.fetchFromGitHub {
       owner = "nix-community";
       repo = "emacs-overlay";
-      rev = "28c31e0ae90b6fcf51f2d02c5d43fe1715dc6393";
-      sha256 = "1ijf27hf6yngrprc874l0phcjw55715h9z3b8dvmy0m5y7wpwswb";
+      rev = "4ee0504ac76fe8f71bea04bcba058107b3d28b05";
+      sha256 = "0n2xpn7fz95f3gnsylfhlihg0mwg0rxac5p0flhqcn44hym45vnr";
     }); }
   , ... }: let
   inherit (pkgs) stdenv lib runCommand buildEnv config writeText;
@@ -4961,7 +5020,7 @@ Next, ZSH completions are built. These all reside in the
 #+BEGIN_SRC nix
   zsh-completions = buildEnv {
     name = "zsh-completions";
-    paths = [ pkgs.zsh-completions pkgs.nix-zsh-completions ] ++ userPackages;
+    paths = [ pkgs.zsh-completions ] ++ userPackages; # pkgs.nix-zsh-completions
     pathsToLink = [ "/share/zsh" ];
   };
 #+END_SRC
@@ -5032,36 +5091,38 @@ why this is necessary, but nXML complains otherwise.
 Full listing of packages that will be made available.
 
 #+BEGIN_SRC nix
-    userPackages = (with pkgs; [
-      # From common-path.nix
-      coreutils-full findutils diffutils gnused gnugrep gawk gnutar
-      gzip bzip2 gnumake bashInteractive patch xz
+  userPackages = (with pkgs; [
+    # From common-path.nix
+    coreutils-full findutils diffutils gnused gnugrep gawk gnutar
+    gzip bzip2 gnumake bashInteractive patch xz
 
-      # Helpful core tools
-      curl zsh cacert file lsof pstree which rsync
-      unzip man less calc ag ripgrep
-      tree gnutls
-    ] ++ lib.optionals big ([
-      git
+    # Helpful core tools
+    curl zsh cacert file lsof pstree which rsync
+    unzip man less calc ag ripgrep
+    tree gnutls
 
-      # Useful tools
-      isync notmuch graphviz indent
-      graphviz imagemagick
+    direnv
+  ] ++ lib.optionals big ([
+    git
 
-      bazaar mercurial
+    # Useful tools
+    isync notmuch graphviz indent
+    graphviz imagemagick
 
-      # Programming interpreters/compilers
-      myTex rEnv perl python lua coq ocaml
-      openjdk nodejs gcc gdb
+    bazaar mercurial
 
-      travis v8
-    ] ++ (lib.optional stdenv.hostPlatform.isDarwin openssh) # use /usr/bin/ ssh
-      ++ (with netbsd; [ getent getconf ])
-      ++ (with nodePackages; [ tern heroku node2nix ])
-      ++ (with gitAndTools; [ hub ])
-      ++ (with haskellPackages; [ ghc jq nix-diff cabal2nix cabal-install ])
-      ++ (with unixtools; [ utillinux nettools procps ])
-    ));
+    # Programming interpreters/compilers
+    myTex rEnv perl python lua coq ocaml
+    openjdk nodejs gcc gdb
+
+    travis v8
+  ] ++ (lib.optional stdenv.hostPlatform.isDarwin openssh) # use /usr/bin/ ssh
+    ++ (with netbsd; [ getent getconf ])
+    ++ (with nodePackages; [ tern heroku node2nix ])
+    ++ (with gitAndTools; [ hub ])
+    ++ (with haskellPackages; [ ghc jq nix-diff cabal2nix cabal-install ])
+    ++ (with unixtools; [ utillinux nettools procps ])
+  ));
 #+END_SRC
 
 Setup global environment variables & directories. Most of the global directories
@@ -5110,7 +5171,9 @@ the most direct access to. Global directories should only contain system paths.
     set show-all-if-unmodified on
     set visible-stats on
 
-    Space: magic-space
+    $if Bash
+      Space: magic-space
+    $endif
   '';
 #+END_SRC
 
@@ -5193,84 +5256,9 @@ nix-build
 :CUSTOM_ID: ci
 :END:
 
-#+BEGIN_EXPORT html
-<a href="https://travis-ci.org/matthewbauer/bauer">
-  <img src="https://travis-ci.org/matthewbauer/bauer.svg?branch=master" alt="travis status"></img>
-</a>
-#+END_EXPORT
+Continuous integration is now through GitHub Actions. See
+.github/workflows/main.yml for more info.
 
-We'll set up Travis support here. We start by configuring =.travis.yml=.
-
-** =.travis.yml=
-:PROPERTIES:
-:header-args: :tangle .travis.yml
-:CUSTOM_ID: travis
-:END:
-
-#+BEGIN_SRC yaml :padline no
-language: nix
-#+END_SRC
-
-Next we'll set up nix-build & pass the URL of Nixpkgs with the =NIXPKGS=.
-
-#+BEGIN_SRC yaml
-script:
-  - nix-build -Q --argstr channel $CHANNEL
-#+END_SRC
-
-Setup the OSs. Sadly no Windows support yet.
-
-#+BEGIN_SRC yaml
-git:
-  depth: 1
-#+END_SRC
-
-Setup some values for =NIXPKGS= variables.
-
-#+BEGIN_SRC yaml
-matrix:
-  include:
-    - os: linux
-      dist: trusty
-      env: CHANNEL=nixos-19.03
-    - os: linux
-      dist: trusty
-      env: CHANNEL=nixos-19.09
-    - os: linux
-      dist: trusty
-      env: CHANNEL=nixos-20.03
-    - os: linux
-      dist: trusty
-      env: CHANNEL=nixos-20.09
-    - os: linux
-      dist: trusty
-      env: CHANNEL=nixos-unstable
-    - os: osx
-      env: CHANNEL=nixpkgs-19.03-darwin
-    - os: osx
-      env: CHANNEL=nixpkgs-19.09-darwin
-    - os: osx
-      env: CHANNEL=nixpkgs-20.03-darwin
-    - os: osx
-      env: CHANNEL=nixpkgs-20.09-darwin
-    - os: osx
-      env: CHANNEL=nixpkgs-unstable
-#+END_SRC
-
-Setup the cache.
-
-#+BEGIN_SRC yaml
-cache:
-  directories:
-    - /nix/store
-#+END_SRC
-
-Turn off those annoying Travis notifications.
-
-#+BEGIN_SRC yaml
-notifications:
-  email: false
-#+END_SRC
 * Extra
 :PROPERTIES:
 :CUSTOM_ID: extra
@@ -5505,7 +5493,7 @@ in {
       packages = forAllSystems (system: {
         bauer = let
           pkgs = nixpkgsFor.${system};
-          evalPkgs = nixpkgsFor.x86_64-linux;
+          evalPkgs = nixpkgsFor.${system};
         in import (evalPkgs.runCommand "README" {
           buildInputs = with evalPkgs; [ emacs git ];
         } (''
@@ -5594,7 +5582,7 @@ Then, add =$HOME/.ssh/id_rsa=.pub through GitHub’s Web UI. Invoke the script
 with:
 
 #+BEGIN_SRC shell :tangle no
-$ ./gist-unpack.sh 862843ce9216abda0b10e1d753ce9d0f
+$ ./gist-unpack.sh 4a7372cf458f2b322c0b7a6e7837592f
 #+END_SRC
 
 Files that can be included in the gist are:
@@ -5618,7 +5606,7 @@ allow overriding your current =$HOME= files.
 
 #+BEGIN_SRC shell
   if [ $# -eq 0 ]; then
-      echo Usage: "$0" GIST_ID [ -u USER ] [ -t TOKEN ] >&2
+      echo Usage: "$0" [ GIST_ID | URL ] [ -u USER ] [ -t TOKEN ] >&2
       exit 1
   fi
 
@@ -5626,6 +5614,7 @@ allow overriding your current =$HOME= files.
   GIST_ID=
   USER=
   TOKEN=
+  URL=
   while [ $# -gt 0 ]; do
       case "$1" in
           -f|--force)
@@ -5652,17 +5641,34 @@ allow overriding your current =$HOME= files.
               shift
               ;;
           -g|--gist-id)
-              if [ -n "$GIST_ID" ]; then
-                  echo Multiple Gist ids passed! >&2
+              if [ -n "$GIST_ID" ] || [ -n "$URL" ]; then
+                  echo Multiple URLs or Gist ids passed! >&2
                   exit 1
               fi
               shift
               GIST_ID="$1"
               shift
               ;;
+          -u|--url)
+              if [ -n "$GIST_ID" ] || [ -n "$URL" ]; then
+                  echo Multiple URLs or Gist ids passed! >&2
+                  exit 1
+              fi
+              shift
+              URL="$1"
+              shift
+              ;;
+          https://*|ssh://*|git://*)
+               if [ -n "$GIST_ID" ] || [ -n "$URL" ]; then
+                  echo Multiple URLs or Gist ids passed! >&2
+                  exit 1
+              fi
+              URL="$1"
+              shift
+              ;;
           ,*)
-              if [ -n "$GIST_ID" ]; then
-                  echo Multiple Gist ids passed! >&2
+              if [ -n "$GIST_ID" ] || [ -n "$URL" ]; then
+                  echo Multiple URLs or Gist ids passed! >&2
                   exit 1
               fi
               GIST_ID="$1"
@@ -5672,8 +5678,12 @@ allow overriding your current =$HOME= files.
       esac
   done
 
-  if [ -z "$GIST_ID" ]; then
-      echo No gist id provided. >&2
+  if [ -n "$GIST_ID" ]; then
+    URL=ssh://git@github.com/"$GIST_ID".git
+  fi
+
+  if [ -z "$URL" ]; then
+      echo No gist id or url provided. >&2
       exit 1
   fi
 
@@ -5703,8 +5713,8 @@ allow overriding your current =$HOME= files.
 
   gistdir="$(mktemp -d)"
   setup() {
-      if ! git clone git@github.com:"$GIST_ID".git "$gistdir"; then
-          echo Failed to clone Gist. Verify "https://gist.github.com/$GIST_ID" exists >&2
+      if ! git clone "$URL" "$gistdir"; then
+          echo Failed to clone Gist. Verify "$URL" exists >&2
           echo and you have permission to access it. >&2
           exit 1
       fi
@@ -5738,9 +5748,11 @@ allow overriding your current =$HOME= files.
           .sshconfig) DEST="$HOME/.ssh/config" ;;
           .ssh_authorized_keys) DEST="$HOME/.ssh/authorized_keys" ;;
           nix.conf) DEST="$HOME/.config/nix/nix.conf" ;;
+          machines) DEST="$HOME/.config/nix/machines" ;;
           .gitignore) DEST="$HOME/.config/git/ignore" ;;
           .gitconfig) DEST="$HOME/.config/git/config" ;;
           .gitattributes) DEST="$HOME/.config/git/attributes" ;;
+          credentials|.aws_credentials) DEST="$HOME/.aws/credentials" ;;
           ,*) DEST="$HOME/$f" ;;
       esac
       CONCAT=
@@ -5750,6 +5762,7 @@ allow overriding your current =$HOME= files.
           .ssh_authorized_keys) CONCAT=1 ;;
           .gitignore) CONCAT=1 ;;
           nix.conf) CONCAT=1 ;;
+          machines) CONCAT=1 ;;
       esac
       if [ -z "$DEST" ]; then
           echo Skipping "$f", no destination found >&2
