@@ -173,7 +173,7 @@ COLORFGBG method.
 
     (when (string-equal (getenv "TERM_PROGRAM") "iTerm.app")
       (add-hook 'after-make-frame-functions
-                '(lambda
+                #'(lambda
                    ;; Take advantage of iterm2's CSI u support (https://gitlab.com/gnachman/iterm2/-/issues/8382).
                    (xterm--init-modify-other-keys)
 
@@ -1176,6 +1176,23 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
     (global-company-mode))
 #+END_SRC
 
+***** company-irony
+#+BEGIN_SRC emacs-lisp
+  (use-package company-irony
+    :disabled
+    :commands company-irony
+    :hook (irony-mode . (lambda ()
+      (setq-local company-backends '(company-irony company-capf)))))
+#+END_SRC
+
+***** company-restclient
+#+BEGIN_SRC emacs-lisp
+  (use-package company-restclient
+    :commands company-restclient
+    :hook (restclient-mode . (lambda ()
+      (setq-local company-backends '(company-restclient company-capf)))))
+#+END_SRC
+
 ***** company-anaconda
 #+BEGIN_SRC emacs-lisp
   (use-package company-anaconda
@@ -1184,24 +1201,6 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
                              (setq-local company-backends '((company-anaconda
                                                              company-capf))))))
 #+END_SRC
-#***** company-auctex
-##+BEGIN_SRC emacs-lisp
-#  (use-package company-auctex
-#    :commands (company-auctex
-#               company-auctext-labels
-#               company-auctest-bibs
-#               company-auctex-macros
-#               company-auctext-symbols
-#               company-auctext-environments)
-#    :hook
-#    (tex-mode . (lambda ()
-#                  (setq-local company-backends '((company-auctex-labels
-#                                                  company-auctex-bibs
-#                                                  company-auctex-macros
-#                                                  company-auctex-environments
-#                                                  company-auctex-symbols
-#                                                  company-capf))))))
-##+END_SRC
 
 ***** company-coq
 #+BEGIN_SRC emacs-lisp
@@ -1214,10 +1213,22 @@ Company provides completions in Emacs. Activate them by pressing =C-M-i=.
 
 ***** company-irony
 #+BEGIN_SRC emacs-lisp
-  (use-package company-irony
-    :commands company-irony
-    :hook (irony-mode . (lambda ()
-      (setq-local company-backends '(company-irony company-capf)))))
+  (use-package company-auctex
+    :disabled
+    :commands (company-auctex
+               company-auctext-labels
+               company-auctest-bibs
+               company-auctex-macros
+               company-auctext-symbols
+               company-auctext-environments)
+    :hook
+    (tex-mode . (lambda ()
+                  (setq-local company-backends '((company-auctex-labels
+                                                  company-auctex-bibs
+                                                  company-auctex-macros
+                                                  company-auctex-environments
+                                                  company-auctex-symbols
+                                                  company-capf))))))
 #+END_SRC
 
 ***** company-lean
@@ -2602,6 +2613,7 @@ packages (for completion, syntax checking, etc.)
         :hook (lsp-mode . lsp-enable-which-key-integration))
 
       (use-package lsp-ui
+        :disabled
         :commands (lsp-ui-mode)
         :bind (:map lsp-ui-mode-map
                ([remap xref-find-definitions] . lsp-ui-peek-find-definitions)
@@ -2615,6 +2627,7 @@ packages (for completion, syntax checking, etc.)
 
 #+BEGIN_SRC emacs-lisp
   (use-package irony
+    :disabled
     :preface
     (autoload 'file-remote-p "files")
     (defun irony-mode-disable-remote ()
@@ -2628,9 +2641,10 @@ packages (for completion, syntax checking, etc.)
  #+END_SRC
 
  #+BEGIN_SRC emacs-lisp
-(use-package irony-cdb
-    :ensure nil
-    :hook (irony-mode . irony-cdb-autosetup-compile-options))
+   (use-package irony-cdb
+       :disabled
+       :ensure nil
+       :hook (irony-mode . irony-cdb-autosetup-compile-options))
  #+END_SRC
 
 ****** flycheck-irony
@@ -2891,27 +2905,24 @@ packages (for completion, syntax checking, etc.)
     (make-local-variable 'js-indent-level))
 #+END_SRC
 
-#**** LaTeX
-#***** auctex
-#
-#Auctex provides some helpful tools for working with LaTeX.
-#
-#****** tex-site
-##+BEGIN_SRC emacs-lisp
-#  (use-package tex-site
-#    :ensure auctex
-#    :no-require
-#    :mode ("\\.tex\\'" . TeX-latex-mode))
-##+END_SRC
-#****** tex-mode
-##+BEGIN_SRC emacs-lisp
-#  (use-package tex-mode
-#    :hook (TeX-mode . latex-electric-env-pair-mode))
-##+END_SRC
-**** Lean
+**** LaTeX
+***** auctex
+
+Auctex provides some helpful tools for working with LaTeX.
+
+****** tex-site
 #+BEGIN_SRC emacs-lisp
-  (use-package lean-mode
-    :mode "\\.lean\\'")
+  (use-package tex-site
+    :disabled
+    :ensure auctex
+    :no-require
+    :mode ("\\.tex\\'" . TeX-latex-mode))
+#+END_SRC
+
+****** tex-mode
+#+BEGIN_SRC emacs-lisp
+  (use-package tex-mode
+    :hook (TeX-mode . latex-electric-env-pair-mode))
 #+END_SRC
 
 **** Lisp
@@ -3145,7 +3156,8 @@ macho-mode to toggle then M-x hexl-mode.
            ("\\.tpl\\.php\\'" . web-mode)
            ("\\.[agj]sp\\'" . web-mode)
            ("\\.as[cp]x\\'" . web-mode)
-           ("\\.djhtml\\'" . web-mode)))
+           ("\\.djhtml\\'" . web-mode)
+           ("\\.tsx\\'" . web-mode)))
 #+END_SRC
 
 **** YAML
@@ -3424,9 +3436,12 @@ https://github.com/cbowdon/daemons.el
 **** undo-tree
 #+BEGIN_SRC emacs-lisp
   (use-package undo-tree
-    :hook ((prog-mode . undo-tree-mode)
-           (org-mode . undo-tree-mode)
-           (text-mode . undo-tree-mode)))
+    :demand
+    :config (global-undo-tree-mode)
+    ;; :hook ((prog-mode . undo-tree-mode)
+    ;;        (org-mode . undo-tree-mode)
+    ;;        (text-mode . undo-tree-mode))
+    )
 #+END_SRC
 **** unfill
 #+BEGIN_SRC emacs-lisp
@@ -4612,7 +4627,7 @@ Now let's tangle README.org... This uses ORG’s babel functionality to generate
           -l ob-tangle \
           --eval "(org-babel-tangle-file \"README.org\")" > /dev/null
     cp bauer.nix default.nix
-  '')) { inherit ensure pkgs small; }
+  '')) { inherit ensure pkgs small system; }
 #+END_SRC
 
 ** =bauer.nix=: the build script
@@ -4636,8 +4651,8 @@ we have some options that can be provided...
   , emacs-overlay ? { overlay = import (evalPkgs.fetchFromGitHub {
       owner = "nix-community";
       repo = "emacs-overlay";
-      rev = "4ee0504ac76fe8f71bea04bcba058107b3d28b05";
-      sha256 = "0n2xpn7fz95f3gnsylfhlihg0mwg0rxac5p0flhqcn44hym45vnr";
+      rev = "6c0362ccf22565d687a0cbc37ec409ca8e5eb2e4";
+      hash = "sha256-wYyYCNF+eA+nXXRrKIZm69WiP4ZsiybFccwa4y/fMKc=";
     }); }
   , ... }: let
   inherit (pkgs) stdenv lib runCommand buildEnv config writeText;
@@ -4675,8 +4690,14 @@ default to ‘emacs’ which should be the latest (Nixpkgs-unstable has version 
 currently).
 
 #+BEGIN_SRC nix
-  customEmacsPackages = (emacs-overlay.overlay pkgs pkgs).emacsPackagesFor
-    (if hostPlatform.isDarwin then pkgs.emacsMacport else pkgs.emacs);
+  customEmacsPackages = let
+    pkgs' = import pkgs.path {
+      inherit crossSystem system config;
+      overlays = overlays ++ [ emacs-overlay.overlay ];
+    };
+  in pkgs'.emacsPackagesFor (pkgs'.emacsGcc.overrideAttrs (o: {
+    CFLAGS = "-DMAC_OS_X_VERSION_MAX_ALLOWED=110200";
+  }));
 #+END_SRC
 
 Tex live provides some LaTeX commads for us.
@@ -4817,28 +4838,6 @@ have the time to do it currently.
   install -D ${ensure ./site-lisp/comint-hyperlink.el
                       "site-lisp/comint-hyperlink.el"} \
           $out/share/emacs/site-lisp/comint-hyperlink.el
-#+END_SRC
-
-This is fairly complicated. What happens is we batch compile all of the .el
-files. The problem is the .el files all are going to depend on dependencies
-that we have just found in package-list. The solution is that complex eval
-below where we add all of the paths (plus their requisites) to the load
-path. This works but is hacky & I am interested in fixing it.
-
-#+BEGIN_SRC nix :tangle no
-  cd $out/share/emacs/site-lisp
-  export HOME=$PWD
-  emacs --batch --quick \
-        --eval \
-  "(let ((default-directory \"${emacsWrapper
-    ((requiredPackages customEmacsPackages myEmacsPackages')
-     ++ (with customEmacsPackages; [use-package delight]))
-  }/share/emacs/site-lisp\"))
-    (normal-top-level-add-subdirs-to-load-path))" \
-        -L . -f batch-byte-compile *.el
-#+END_SRC
-
-#+BEGIN_SRC nix
   '';
 #+END_SRC
 
@@ -4846,63 +4845,6 @@ path. This works but is hacky & I am interested in fixing it.
 
 This phase wraps the byte compiled lisp into an Emacs binary. Each package
 listed in =use-package= above is pulled into the closure.
-
-#+BEGIN_SRC nix
-  emacsWrapper = explicitRequires:
-   runCommand "emacs-packages-deps"
-   { nativeBuildInputs = [ pkgs.xorg.lndir pkgs.emacs ];
-     inherit explicitRequires; } ''
-  findInputsOld() {
-      local pkg="$1"; shift
-      local var="$1"; shift
-      local propagatedBuildInputsFiles=("$@")
-      local varSlice="$var[*]"
-      case "''${!varSlice-}" in
-          ,*" $pkg "*) return 0 ;;
-      esac
-      unset -v varSlice
-      eval "$var"'+=("$pkg")'
-      if ! [ -e "$pkg" ]; then
-          echo "build input $pkg does not exist" >&2
-          exit 1
-      fi
-      local file
-      for file in "''${propagatedBuildInputsFiles[@]}"; do
-          file="$pkg/nix-support/$file"
-          [[ -f "$file" ]] || continue
-          local pkgNext
-          for pkgNext in $(< "$file"); do
-              findInputsOld "$pkgNext" "$var" \
-                            "''${propagatedBuildInputsFiles[@]}"
-          done
-      done
-  }
-  mkdir -p $out/bin
-  mkdir -p $out/share/emacs/site-lisp
-  local requires
-  for pkg in $explicitRequires; do
-    findInputsOld $pkg requires propagated-user-env-packages
-  done
-  linkPath() {
-    local pkg=$1
-    local origin_path=$2
-    local dest_path=$3
-    if [ -d "$pkg/$origin_path" ]; then
-      lndir -silent "$pkg/$origin_path" \
-                               "$out/$dest_path"
-    fi
-  }
-  linkEmacsPackage() {
-    linkPath "$1" "bin" "bin"
-    linkPath "$1" "share/emacs/site-lisp" \
-                  "share/emacs/site-lisp"
-  }
-  for pkg in "''${requires[@]}"; do
-    linkEmacsPackage $pkg
-  done
-  # emacs --batch -f batch-byte-compile "$siteStart"
-  '';
-#+END_SRC
 
 requiredPackages is a function that takes two arguments.
 
@@ -5098,7 +5040,7 @@ Full listing of packages that will be made available.
 
     # Helpful core tools
     curl zsh cacert file lsof pstree which rsync
-    unzip man less calc ag ripgrep
+    unzip man less ag ripgrep
     tree gnutls
 
     direnv
@@ -5372,6 +5314,8 @@ You can use this as part of [[~/.emacs.d/init.el][your Emacs init file]]:
         (expand-file-name "README.org" bauer-dir))
 (add-to-list 'load-path
              (expand-file-name "site-lisp" bauer-dir))
+(add-to-list 'native-comp-eln-load-path
+             (expand-file-name "native-lisp" bauer-dir))
 (unless (file-exists-p
           (expand-file-name "README.el" bauer-dir))
   (let ((default-directory bauer-dir))
@@ -5482,11 +5426,11 @@ in {
   {
     description = "an Emacs+Nix IDE";
 
-    inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
+    inputs.nixpkgs.url = "github:nixos/nixpkgs";
     inputs.emacs-overlay.url = "github:nix-community/emacs-overlay";
 
     outputs = { self, nixpkgs, emacs-overlay }: let
-      systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" ];
+      systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in {
@@ -5495,7 +5439,7 @@ in {
           pkgs = nixpkgsFor.${system};
           evalPkgs = nixpkgsFor.${system};
         in import (evalPkgs.runCommand "README" {
-          buildInputs = with evalPkgs; [ emacs git ];
+          buildInputs = with evalPkgs; [ pkgs.emacs git ];
         } (''
           install -D ${./README.org} $out/README.org
           cd $out
@@ -5504,7 +5448,7 @@ in {
                 -l ob-tangle \
                 --eval "(org-babel-tangle-file \"README.org\")" > /dev/null
           cp bauer.nix default.nix
-        '')) { inherit pkgs emacs-overlay evalPkgs; };
+        '')) { inherit pkgs emacs-overlay evalPkgs system; };
       });
 
       defaultPackage = forAllSystems (system: self.packages.${system}.bauer);
@@ -5522,7 +5466,7 @@ in {
         with nixpkgsFor.${system};
         stdenv.mkDerivation {
           name = "bauer";
-          nativeBuildInputs = [ emacs git ];
+          nativeBuildInputs = [ pkgs.emacs git ];
           shellHook = ''
             echo Run ./update.sh to generate files.
           '';
