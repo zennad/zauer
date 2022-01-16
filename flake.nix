@@ -5,14 +5,14 @@
   inputs.emacs-overlay.url = "github:nix-community/emacs-overlay";
 
   outputs = { self, nixpkgs, emacs-overlay }: let
-    systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+    systems = [ "x86_64-linux" ];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
     nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
   in {
     packages = forAllSystems (system: {
       bauer = let
         pkgs = nixpkgsFor.${system};
-        evalPkgs = nixpkgsFor.x86_64-linux;
+        evalPkgs = nixpkgsFor.${system};
       in import (evalPkgs.runCommand "README" {
         buildInputs = with evalPkgs; [ pkgs.emacs git ];
       } (''
@@ -51,4 +51,6 @@
       imports = [ ./module.nix ];
     };
   };
+
+  # nixConfig.allow-import-from-derivation = true;
 }

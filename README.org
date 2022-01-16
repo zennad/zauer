@@ -282,6 +282,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | dired-recursive-deletes                       | 'top              |
 | dtrt-indent-verbosity                         | 0                 |
 | eldoc-idle-delay                              | 0.4               |
+| envrc-none-lighter                            | nil               |
 | eshell-bad-command-tolerance                  | 1                 |
 | eshell-cmpl-autolist                          | t                 |
 | eshell-cmpl-cycle-completions                 | nil               |
@@ -298,7 +299,6 @@ The format of arguments to =set-defaults= is identical to the one used by
 | eshell-stringify                              | nil               |
 | eshell-visual-options                         | nil               |
 | eval-expression-print-level                   | nil               |
-| frame-inhibit-implied-resize                  | t                 |
 | flycheck-emacs-lisp-load-path                 | 'inherit          |
 | flycheck-standard-error-navigation            | nil               |
 | flymake-no-changes-timeout                    | nil               |
@@ -306,6 +306,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | flyspell-highlight-properties                 | nil               |
 | flyspell-issue-welcome-flag                   | nil               |
 | fortune-always-compile                        | nil               |
+| frame-inhibit-implied-resize                  | t                 |
 | haskell-process-check-cabal-config-on-load    | nil               |
 | haskell-process-suggest-add-package           | nil               |
 | haskell-process-suggest-haskell-docs-imports  | nil               |
@@ -322,8 +323,9 @@ The format of arguments to =set-defaults= is identical to the one used by
 | ibuffer-shrink-to-minimum-size                | t                 |
 | ibuffer-use-other-window                      | t                 |
 | imenu-auto-rescan                             | t                 |
-| indicate-empty-lines                          | t                 |
 | indent-tabs-mode                              | nil               |
+| indicate-buffer-boundaries                    | 'left             |
+| indicate-empty-lines                          | t                 |
 | ispell-quietly                                | t                 |
 | ispell-silently-savep                         | t                 |
 | js2-mode-show-parse-errors                    | nil               |
@@ -385,6 +387,7 @@ The format of arguments to =set-defaults= is identical to the one used by
 | sh-learn-basic-offset                         | t                 |
 | shell-completion-execonly                     | nil               |
 | shell-input-autoexpand                        | nil               |
+| show-trailing-whitespace                      | t                 |
 | sp-autoskip-closing-pair                      | 'always           |
 | sp-highlight-pair-overlay                     | nil               |
 | tab-always-indent                             | 'complete         |
@@ -396,8 +399,8 @@ The format of arguments to =set-defaults= is identical to the one used by
 | tls-checktrust                                | t                 |
 | tool-bar-mode                                 | nil               |
 | undo-limit                                    | 80000000          |
-| undo-strong-limit                             | 12000000          |
 | undo-outer-limit                              | 120000000         |
+| undo-strong-limit                             | 12000000          |
 | undo-tree-auto-save-history                   | t                 |
 | uniquify-buffer-name-style                    | 'forward          |
 | use-package-always-defer                      | t                 |
@@ -405,15 +408,14 @@ The format of arguments to =set-defaults= is identical to the one used by
 | vc-command-messages                           | t                 |
 | vc-make-backup-files                          | t                 |
 | version-control                               | t                 |
-| view-read-only                                | t                 |
 | view-inhibit-help-message                     | t                 |
-| window-combination-resize                     | t                 |
-| whitespace-line-column                        | 120               |
+| view-read-only                                | t                 |
 | which-key-idle-delay                          | 0.4               |
 | which-key-idle-secondary-delay                | 0.4               |
+| whitespace-line-column                        | 120               |
+| window-combination-resize                     | t                 |
 | woman-imenu                                   | t                 |
 | x-stretch-cursor                              | t                 |
-| envrc-none-lighter                            | nil               |
 
 #+BEGIN_SRC emacs-lisp :var defaults=defaults
   (apply 'set-defaults
@@ -441,6 +443,15 @@ Misc. defaults that don’t fit above. TODO: move these above.
    '(backup-directory-alist `((".*" .
                                ,(expand-file-name "backup/"
                                                   user-emacs-directory))))
+   '(context-menu-functions
+     '(context-menu-ffap
+       context-menu-undo
+       context-menu-region
+       context-menu-local
+       context-menu-minor
+       occur-context-menu
+       context-menu-dictionary
+       context-menu-buffers))
    '(company-auto-complete (lambda ()
                              (and (company-tooltip-visible-p)
                                   (company-explicit-action-p))))
@@ -1601,7 +1612,7 @@ Magit forge.
 #+END_SRC
 
 ***** git-commit
-#+BEGIN_SRC
+#+BEGIN_SRC emacs-lisp
   (use-package git-commit
     :hook ((git-commit-mode . flyspell-mode)
            (git-commit-mode . git-commit-save-message)
@@ -1647,11 +1658,11 @@ outliner but also much much more.
 
 #+BEGIN_SRC emacs-lisp
   (use-package org
-    :ensure org-plus-contrib
+    :ensure org-contrib
     :hook ((org-mode . (lambda ()
              (add-hook 'completion-at-point-functions
                        'pcomplete-completions-at-point nil t)))
-           (org-mode . auto-fill-mode)
+           (org-mode . (lambda () (visual-line-mode -1)))
            (org-mode . (lambda () (setq-local scroll-margin 3)))
            (message-mode . turn-on-orgtbl)
            (org-mode . (lambda ()
@@ -1735,9 +1746,8 @@ Smartparens is helpful in closing parenthesis when editing Lisp code.
              lisp-mode
              inferior-lisp-mode
              lisp-interaction-mode
-             slime-repl-mode
-             eval-expression-minibuffer-setup) .
-            smartparens-strict-mode)
+             slime-repl-mode) .
+             smartparens-strict-mode)
            ((emacs-lisp-mode
              inferior-emacs-lisp-mode
              ielm-mode
@@ -1771,11 +1781,9 @@ Smartparens is helpful in closing parenthesis when editing Lisp code.
            ("M-S" . sp-split-sexp) ;; misc
            ("M-j" . sp-join-sexp))
     :config
+    (require 'smartparens-config)
+
     (autoload 'sp-with-modes "smartparens" "" nil 'macro)
-    (use-package smartparens-config
-      :disabled
-      :ensure nil
-      :demand)
 
     (sp-with-modes 'org-mode
       (sp-local-pair "*" "*"
@@ -2276,6 +2284,7 @@ setup.
     :if (>= emacs-major-version 25)
     :hook
      ((prog-mode . electric-pair-local-mode)
+      (eval-expression-minibuffer-setup . electric-pair-local-mode)
       (smartparens-mode . (lambda ()
         (electric-pair-local-mode -1)))))
 #+END_SRC
@@ -2404,6 +2413,15 @@ Make scripts executable automatically.
 (use-package ibuffer
   :commands (ibuffer-do-sort-by-alphabetic)
   :bind ([remap list-buffers] . ibuffer))
+#+END_SRC
+
+***** mouse
+
+#+BEGIN_SRC emacs-lisp
+      (use-package mouse
+        :ensure nil
+        :hook ((text-mode . context-menu-mode)
+               (prog-mode . context-menu-mode)))
 #+END_SRC
 
 **** paren
@@ -2579,6 +2597,161 @@ Make scripts executable automatically.
     :hook ((text-mode . turn-on-auto-fill)))
 #+END_SRC
 
+**** timeclock
+#+BEGIN_SRC emacs-lisp
+  (use-package timeclock
+    :ensure nil)
+
+  (require 'timeclock)
+
+  (defvar timeclock-report-mode-map
+    (let ((map (make-sparse-keymap)))
+      (define-key map [?g] #'timeclock-report-redo)
+      (define-key map [?q] #'timeclock-report-quit)
+      map)
+    "Keymap for `timeclock-report-mode'.")
+
+  (easy-menu-define timeclock-report-mode-menu timeclock-report-mode-map
+    "Ledger report menu"
+    '("Timeclock Report"
+      ["Reload" timeclock-report-redo]
+      ["Quit" timeclock-report-quit]
+      ))
+
+  (define-derived-mode timeclock-report-mode special-mode "Timeclock-Report"
+    "A mode for viewing timeclock reports."
+    (hack-dir-local-variables-non-file-buffer)
+    (setq-local revert-buffer-function 'timeclock-report-redo))
+
+  (defvar timeclock-report-buffer-name "*Timeclock Report*")
+
+  (defun timeclock-report-quit ()
+    (interactive)
+    (unless (buffer-live-p (get-buffer timeclock-report-buffer-name))
+      (user-error "No timeclock report buffer"))
+    (quit-windows-on timeclock-report-buffer-name 'kill))
+
+  (defun timeclock-report-redo (&optional _ignore-auto _noconfirm)
+    (interactive)
+    (unless (derived-mode-p 'timeclock-report-mode)
+      (user-error "Not in a timeclock-report-mode buffer"))
+    (timeclock-reread-log)
+    (let ((cur-buf (current-buffer)))
+      (when (get-buffer timeclock-report-buffer-name)
+        (with-silent-modifications
+          (erase-buffer)
+          (timeclock-report-mode)
+          (timeclock-generate-report)
+          (newline))
+        (pop-to-buffer cur-buf))))
+
+  (defun timeclock-report ()
+    "Timeclock report."
+    (interactive)
+    (timeclock-reread-log)
+    (with-current-buffer
+        (pop-to-buffer (get-buffer-create timeclock-report-buffer-name) 'display-buffer-pop-up-window)
+      (with-silent-modifications
+        (erase-buffer)
+        (timeclock-report-mode)
+        (timeclock-generate-report)
+        (newline))))
+
+  (defvar timeclock-mode-map
+    (let ((map (make-sparse-keymap)))
+      (define-key map (kbd "C-c C-i") 'timeclock-in)
+      (define-key map (kbd "C-c C-o") 'timeclock-out)
+      (define-key map (kbd "C-c C-c") 'timeclock-change)
+      (define-key map (kbd "C-c C-r") 'timeclock-reread-log)
+      (define-key map (kbd "C-c C-u") 'timeclock-update-mode-line)
+      (define-key map (kbd "C-c C-w") 'timeclock-when-to-leave-string)
+      (define-key map (kbd "C-c C-t") 'timeclock-report)
+
+      ;; Reset the `text-mode' override of this standard binding
+      (define-key map (kbd "C-M-i") 'completion-at-point)
+      map)
+    "Keymap for `timeclock-mode'.")
+
+  (easy-menu-define timeclock-mode-menu timeclock-mode-map
+    "Menu for `timeclock-mode'."
+    '("Timeclock"
+      ["Clock in" timeclock-in]
+      ["Clock out" timeclock-out]
+      ["Change project" timeclock-change]
+      ["Reread log" timeclock-reread-log]
+      ["Update modeline" timeclock-update-mode-line]
+      ["When to leave" timeclock-when-to-leave-string]
+      "---"
+      ["Customize Timeclock Mode" (lambda () (interactive) (customize-group 'timeclock))]
+      "---"
+      ["Report" timeclock-report]
+      ))
+
+  (defgroup timeclock-faces nil "Timeclock mode highlighting" :group 'timeclock)
+
+  (defface timeclock-font-directive-face
+    `((t :inherit font-lock-preprocessor-face))
+    "Default face for timeclock"
+    :group 'timeclock-faces)
+
+  (defface timeclock-font-uncleared-face
+    `((t :inherit warning))
+    "Uncleared face fortimeclock"
+    :group 'timeclock-faces)
+
+  (defface timeclock-font-cleared-face
+    `((t :inherit shadow))
+    "Cleared face for timeclock"
+    :group 'timeclock-faces)
+
+  (defface timeclock-font-comment-face
+    `((t :inherit font-lock-comment-face))
+    "Face for Timeclock comments"
+    :group 'timeclock-faces)
+
+  (defface timeclock-font-date-face
+    `((t :inherit font-lock-keyword-face))
+    "Face for Timeclock dates"
+    :group 'timeclock-faces)
+
+  (defun timeclock-font-face-by-state (num faces)
+    "Choose one of two faces depending on a timeclock directive character.
+  NUM specifies a match group containing the character.
+  FACES has the form (CLEARED UNCLEARED).
+  Return CLEARED if the character specifies a cleared transaction,
+  UNCLEARED otherwise."
+    (if (member (match-string num) '("I" "O"))
+        (nth 0 faces)
+      (nth 1 faces)))
+
+  (defvar timeclock-font-lock-keywords
+    `((,(concat "^\\([IiOo]\\)"
+                "\\(?:[[:blank:]]+\\([^[:blank:]\n]+"
+                "\\(?:[[:blank:]]+[^[:blank:]\n]+\\)?\\)"
+                "\\(?:[[:blank:]]+\\(.*?\\)"
+                "\\(?:\t\\|[ \t]\\{2,\\}\\(.*?\\)"
+                "\\(?:\t\\|[ \t]\\{2,\\}\\(;.*\\)\\)?\\)?\\)?\\)?$")
+       (1 'timeclock-font-directive-face)
+       (2 'timeclock-font-date-face nil :lax)
+       (3 (timeclock-font-face-by-state 1 '(timeclock-font-cleared-face
+                                            timeclock-font-directive-face)) nil :lax)
+       (4 (timeclock-font-face-by-state 1 '(timeclock-font-cleared-face
+                                            timeclock-font-uncleared-face)) nil :lax)
+       (5 'timeclock-font-comment-face nil :lax)))
+    "Expressions to highlight in Timeclock mode.")
+
+  ;;;###autoload
+  (define-derived-mode timeclock-mode text-mode "Timeclock"
+    "A major mode to timelog files."
+    (setq font-lock-defaults
+          '(timeclock-font-lock-keywords t nil nil nil))
+
+    (when (and (boundp 'display-time-mode) display-time-mode)
+      (timeclock-mode-line-display t)))
+
+  ;;;###autoload
+  (add-to-list 'auto-mode-alist '("timelog\\'" . timeclock-mode))
+#+END_SRC
 **** url-handlers
 
 #+BEGIN_SRC emacs-lisp
@@ -2613,7 +2786,6 @@ packages (for completion, syntax checking, etc.)
         :hook (lsp-mode . lsp-enable-which-key-integration))
 
       (use-package lsp-ui
-        :disabled
         :commands (lsp-ui-mode)
         :bind (:map lsp-ui-mode-map
                ([remap xref-find-definitions] . lsp-ui-peek-find-definitions)
@@ -2666,7 +2838,7 @@ packages (for completion, syntax checking, etc.)
 **** CMake
 
 #+BEGIN_SRC emacs-lisp
-  (use-package cmake-mode)
+  ;; (use-package cmake-mode)
 #+END_SRC
 
 **** CoffeeScript
@@ -2733,20 +2905,8 @@ packages (for completion, syntax checking, etc.)
 
 **** git-modes
 
-***** gitattributes
 #+BEGIN_SRC emacs-lisp
-  (use-package gitattributes-mode)
-#+END_SRC
-
-***** gitconfig
-#+BEGIN_SRC emacs-lisp
-  (use-package gitconfig-mode)
-#+END_SRC
-
-***** gitignore
-#+BEGIN_SRC emacs-lisp
-  (use-package gitignore-mode
-    :disabled)
+  (use-package git-modes)
 #+END_SRC
 
 **** Go
@@ -2775,7 +2935,7 @@ packages (for completion, syntax checking, etc.)
            ;; (haskell-mode . haskell-indentation-mode)
            ;; (haskell-mode . haskell-auto-insert-module-template)
            ;; (haskell-mode . haskell-decl-scan-mode)
-           (haskell-mode . haskell-indent-mode)
+           ;; (haskell-mode . turn-on-haskell-indent)
            ;; (haskell-mode . imenu-add-menubar-index)
            ;; (haskell-mode .
            ;;          (lambda ()
@@ -2870,13 +3030,21 @@ packages (for completion, syntax checking, etc.)
     :mode ("\\.js\\'" . indium-mode))
 #+END_SRC
 
+***** js-mode
+#+BEGIN_SRC emacs-lisp
+  (use-package js-mode
+    :ensure nil
+    :mode (("\\.es6\\'" . js-mode)
+           ("\\.ejs\\'" . js-mode)
+           ("\\.ts\\'" . js-mode)
+           ("\\.tsx\\'" . js-mode))
+    :interpreter "node")
+#+END_SRC
+
 ***** js2-mode
 #+BEGIN_SRC emacs-lisp
   (use-package js2-mode
-    :mode (("\\.js\\'" . js2-mode)
-           ("\\.es6\\'" . js2-mode)
-           ("\\.ejs\\'" . js2-mode))
-    :interpreter "node")
+    :hook (js-mode . js2-minor-mode))
 #+END_SRC
 ****** js2-imenu-extras
 #+BEGIN_SRC emacs-lisp
@@ -3157,7 +3325,8 @@ macho-mode to toggle then M-x hexl-mode.
            ("\\.[agj]sp\\'" . web-mode)
            ("\\.as[cp]x\\'" . web-mode)
            ("\\.djhtml\\'" . web-mode)
-           ("\\.tsx\\'" . web-mode)))
+           ;; ("\\.tsx\\'" . web-mode)
+           ))
 #+END_SRC
 
 **** YAML
@@ -3243,8 +3412,14 @@ https://github.com/cbowdon/daemons.el
 **** deadgrep
 #+BEGIN_SRC emacs-lisp
   (use-package deadgrep
+    :disabled
     :bind (:map projectile-command-map
            ("s g" . deadgrep)))
+#+END_SRC
+
+**** ripgrep
+#+BEGIN_SRC emacs-lisp
+  (use-package rg)
 #+END_SRC
 **** delight
 
@@ -3322,7 +3497,7 @@ https://github.com/cbowdon/daemons.el
 
 #+BEGIN_SRC emacs-lisp
   (use-package ledger-mode
-    :disabled)
+    :mode "\\.journal\\'")
 #+END_SRC
 **** linum-relative
 #+BEGIN_SRC emacs-lisp
@@ -3438,10 +3613,10 @@ https://github.com/cbowdon/daemons.el
   (use-package undo-tree
     :demand
     :config (global-undo-tree-mode)
-    ;; :hook ((prog-mode . undo-tree-mode)
-    ;;        (org-mode . undo-tree-mode)
-    ;;        (text-mode . undo-tree-mode))
-    )
+    :hook ((org-mode . undo-tree-mode)
+           ;; (prog-mode . undo-tree-mode)
+           ;; (text-mode . undo-tree-mode)
+           ))
 #+END_SRC
 **** unfill
 #+BEGIN_SRC emacs-lisp
@@ -3581,11 +3756,12 @@ just in case.
       export PINENTRY_USER_DATA=USE_CURSES=1
     fi
 
-    export LESS='-FRSMi' \
-           SYSTEMD_LESS=FRSMi \
+    export LESS=FRSMi \
            INPUTRC=@INPUTRC@ \
            GPG_TTY=$TTY \
            CVS_RSH=ssh
+
+    export SYSTEMD_LESS=$LESS
 
     HISTCONTROL=ignoredups:erasedups:ignorespace
     PROMPT_DIRTRIM=4
@@ -4588,7 +4764,7 @@ args.
 
 #+BEGIN_SRC nix :padline no
   # -*- mode: nix; coding: utf-8; -*-
-  { version ? "20.09"
+  { version ? "21.11"
   , channel ? {
       "x86_64-darwin" = "nixpkgs-unstable";
     }.${builtins.currentSystem} or "nixos-${version}"
@@ -4648,12 +4824,7 @@ we have some options that can be provided...
   , evalPkgs ? pkgs
   , ensure ? f: n: f
   , small ? pkgs.config.bauer.small or true
-  , emacs-overlay ? { overlay = import (evalPkgs.fetchFromGitHub {
-      owner = "nix-community";
-      repo = "emacs-overlay";
-      rev = "6c0362ccf22565d687a0cbc37ec409ca8e5eb2e4";
-      hash = "sha256-wYyYCNF+eA+nXXRrKIZm69WiP4ZsiybFccwa4y/fMKc=";
-    }); }
+  , emacs-overlay ? { overlay = import (builtins.fetchTarball "https://github.com/nix-community/emacs-overlay/archive/master.tar.gz"); }
   , ... }: let
   inherit (pkgs) stdenv lib runCommand buildEnv config writeText;
   inherit (stdenv) hostPlatform;
@@ -5430,7 +5601,7 @@ in {
     inputs.emacs-overlay.url = "github:nix-community/emacs-overlay";
 
     outputs = { self, nixpkgs, emacs-overlay }: let
-      systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+      systems = [ "x86_64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
       nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in {
@@ -5476,6 +5647,8 @@ in {
         imports = [ ./module.nix ];
       };
     };
+
+    # nixConfig.allow-import-from-derivation = true;
   }
 #+END_SRC
 ** Deploy script
