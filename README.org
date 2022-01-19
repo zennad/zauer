@@ -2998,11 +2998,6 @@ packages (for completion, syntax checking, etc.)
     )
 #+END_SRC
 
-***** hasky-stack
-#+BEGIN_SRC emacs-lisp
-  (use-package hasky-stack)
-#+END_SRC
-
 ***** liquid-types
 #+BEGIN_SRC emacs-lisp
   (use-package liquid-types)
