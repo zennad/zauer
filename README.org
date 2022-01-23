@@ -5307,7 +5307,7 @@ in buildEnv {
       --subst-var-by emacs ${myEmacs}
     chmod +x $out/bin/run
     patchShebangs $out/bin/run
-    ln -s $out/bin/run $out/bin/bauer
+    ln -s $out/bin/run $out/bin/zauer
   '';
   pathsToLink = [
     "/bin"
